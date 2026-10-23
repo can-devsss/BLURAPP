@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
 import uuid
-from .processor import BlurProcessor
+# DİKKAT: Render kök dizinden çalıştırdığı için 'from .processor' yerine doğrudan 'from processor' yaptık
+from processor import BlurProcessor
 
 app = FastAPI()
 
@@ -21,7 +22,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
-    html_path = os.path.join(os.path.dirname(__file__), "../frontend/index.html")
+    # Dosyalar kök dizinde olduğu için frontend yolunu güncelledik
+    html_path = os.path.join(os.path.dirname(__file__), "frontend/index.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
             return f.read()
