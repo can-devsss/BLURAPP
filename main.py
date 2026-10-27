@@ -27,11 +27,22 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
-    html_path = os.path.join(os.path.dirname(__file__), "../frontend/index.html")
-    if os.path.exists(html_path):
-        with open(html_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return "<h1>index.html bulunamadı!</h1>"
+    # Render ve lokaldeki olası dosya yolu ihtimallerini sırayla arayalım
+    possible_paths = [
+        os.path.join(os.path.dirname(__file__), "../frontend/index.html"),
+        os.path.join(os.path.dirname(__file__), "frontend/index.html"),
+        os.path.join(os.getcwd(), "frontend/index.html"),
+        os.path.join(os.getcwd(), "../frontend/index.html"),
+        os.path.join(os.getcwd(), "index.html"),
+        "frontend/index.html"
+    ]
+    
+    for html_path in possible_paths:
+        if os.path.exists(html_path):
+            with open(html_path, "r", encoding="utf-8") as f:
+                return f.read()
+                
+    return "<h1>index.html bulunamadı! Lütfen dosya konumunu kontrol edin.</h1>"
 
 @app.post("/api/process-media")
 async def process_media(
