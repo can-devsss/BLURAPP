@@ -1,86 +1,75 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-import os
-import shutil
-import uuid
-import json
+import cv2
+import numpy as np
 
-# Render ve lokal yapı uyumu için mutlak import (Absolute Import)
-try:
-    from backend.processor import BlurProcessor
-except ImportError:
-    from processor import BlurProcessor
+class BlurProcessor:
+    @staticmethod
+    def apply_progressive_blur(image_path: str, output_path: str, blur_strength: int, box_data: dict = None):
+        img = cv2.imread(image_path)
+        if img is None:
+            raise ValueError("Görsel okunamadı!")
 
-app = FastAPI()
+        if blur_strength <= 0:
+            cv2.imwrite(output_path, img)
+            return output_path
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+        ksize = int(blur_strength) * 2 + 1
+        if ksize % 2 == 0:
+            ksize += 1
 
-UPLOAD_DIR = "temp_storage"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+        if box_data and all(k in box_data for k in ['x', 'y', 'width', 'height']):
+            h, w = img.shape[:2]
+            x = max(0, int(box_data['x']))
+            y = max(0, int(box_data['y']))
+            bw = min(w - x, int(box_data['width']))
+            bh = min(h - y, int(box_data['height']))
 
-@app.get("/", response_class=HTMLResponse)
-async def get_index():
-    # Render ve lokaldeki olası dosya yolu ihtimallerini sırayla arayalım
-    possible_paths = [
-        os.path.join(os.path.dirname(__file__), "../frontend/index.html"),
-        os.path.join(os.path.dirname(__file__), "frontend/index.html"),
-        os.path.join(os.getcwd(), "frontend/index.html"),
-        os.path.join(os.getcwd(), "../frontend/index.html"),
-        os.path.join(os.getcwd(), "index.html"),
-        "frontend/index.html"
-    ]
-    
-    for html_path in possible_paths:
-        if os.path.exists(html_path):
-            with open(html_path, "r", encoding="utf-8") as f:
-                return f.read()
-                
-    return "<h1>index.html bulunamadı! Lütfen dosya konumunu kontrol edin.</h1>"
-
-@app.post("/api/process-media")
-async def process_media(
-    file: UploadFile = File(...),
-    intensity: int = Form(...),
-    media_type: str = Form(...),
-    box: str = Form(None)  # Bölgeli blur için JSON koordinatlar
-):
-    file_extension = os.path.splitext(file.filename)[1] or (".mp4" if media_type == "video" else ".jpg")
-    unique_name = f"{uuid.uuid4()}{file_extension}"
-    
-    input_path = os.path.join(UPLOAD_DIR, f"orig_{unique_name}")
-    output_filename = f"blured_{unique_name}"
-    output_path = os.path.join(UPLOAD_DIR, output_filename)
-
-    box_data = None
-    if box:
-        try:
-            box_data = json.loads(box)
-        except:
-            pass
-
-    try:
-        with open(input_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        if media_type == "video":
-            BlurProcessor.apply_video_blur(input_path, output_path, intensity, box_data)
+            if bw > 0 and bh > 0:
+                roi = img[y:y+bh, x:x+bw]
+                blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
+                img[y:y+bh, x:x+bw] = blurred_roi
         else:
-            BlurProcessor.apply_progressive_blur(input_path, output_path, intensity, box_data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            img = cv2.GaussianBlur(img, (ksize, ksize), 0)
 
-    return {"success": True, "download_url": f"/api/download/{output_filename}"}
+        cv2.imwrite(output_path, img)
+        return output_path
 
-@app.get("/api/download/{filename}")
-async def download_file(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, filename=filename, media_type='application/octet-stream')
-    raise HTTPException(status_code=404, detail="Dosya bulunamadı!")
+    @staticmethod
+    def apply_video_blur(video_path: str, output_path: str, blur_strength: int, box_data: dict = None):
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError("Video açılamadı!")
+
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+        ksize = int(blur_strength) * 2 + 1
+        if ksize % 2 == 0:
+            ksize += 1
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            if blur_strength > 0:
+                if box_data and all(k in box_data for k in ['x', 'y', 'width', 'height']):
+                    h, w = frame.shape[:2]
+                    x = max(0, int(box_data['x']))
+                    y = max(0, int(box_data['y']))
+                    bw = min(w - x, int(box_data['width']))
+                    bh = min(h - y, int(box_data['height']))
+                    if bw > 0 and bh > 0:
+                        roi = frame[y:y+bh, x:x+bw]
+                        frame[y:y+bh, x:x+bw] = cv2.GaussianBlur(roi, (ksize, ksize), 0)
+                else:
+                    frame = cv2.GaussianBlur(frame, (ksize, ksize), 0)
+
+            out.write(frame)
+
+        cap.release()
+        out.release()
+        return output_path
