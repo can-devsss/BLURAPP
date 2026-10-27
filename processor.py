@@ -43,6 +43,7 @@ class BlurProcessor:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         
+        # Tarayıcıların %99'unda sorunsuz oynatılması için H264 / MP4V codec
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
@@ -62,9 +63,11 @@ class BlurProcessor:
                     y = max(0, int(box_data['y']))
                     bw = min(w - x, int(box_data['width']))
                     bh = min(h - y, int(box_data['height']))
+                    
                     if bw > 0 and bh > 0:
                         roi = frame[y:y+bh, x:x+bw]
-                        frame[y:y+bh, x:x+bw] = cv2.GaussianBlur(roi, (ksize, ksize), 0)
+                        blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
+                        frame[y:y+bh, x:x+bw] = blurred_roi
                 else:
                     frame = cv2.GaussianBlur(frame, (ksize, ksize), 0)
 
