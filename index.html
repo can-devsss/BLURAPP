@@ -72,10 +72,10 @@
             <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
             <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" playsinline preload="metadata"></video>
             
-            <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/20 hidden pointer-events-none z-20 rounded-lg"></div>
+            <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/10 hidden pointer-events-none z-20 rounded-lg overflow-hidden"></div>
         </div>
 
-        <!-- VİDEO İÇİN ALT KONTROL BARI (Ortadaki devasa oynat tuşu tamamen kaldırıldı) -->
+        <!-- VİDEO İÇİN ALT KONTROL BARI -->
         <div id="video-controls-bar" class="hidden flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-all">▶</button>
             <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)" class="w-full cursor-pointer">
@@ -119,12 +119,14 @@
         let blurMode = 'full'; 
         let selectedRatioBox = null;
 
-        let canvas = document.getElementById('preview-canvas');
-        let ctx = canvas.getContext('2d');
-        let videoEl = document.getElementById('preview-video');
-        let videoControlsBar = document.getElementById('video-controls-bar');
-        let playPauseBtn = document.getElementById('play-pause-btn');
-        let videoProgress = document.getElementById('video-progress');
+        const canvas = document.getElementById('preview-canvas');
+        const ctx = canvas.getContext('2d');
+        const videoEl = document.getElementById('preview-video');
+        const videoControlsBar = document.getElementById('video-controls-bar');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const videoProgress = document.getElementById('video-progress');
+        const activeContainer = document.getElementById('preview-container');
+        const boxEl = document.getElementById('selection-box');
         
         let isDrawing = false;
         let startX = 0, startY = 0;
@@ -133,7 +135,6 @@
             document.getElementById('app-html').classList.toggle('dark');
         }
 
-        // Alt bardan video oynat / durdur
         function toggleVideoPlay() {
             if (videoEl.paused) {
                 videoEl.play();
@@ -160,12 +161,54 @@
             }
         }
 
+        // Medyanın ekranda kapladığı gerçek piksel sınırlarını (object-contain boşluklarını çıkararak) hesaplar
+        function getRenderedMediaRect() {
+            const containerRect = activeContainer.getBoundingClientRect();
+            let natW = 0, natH = 0;
+
+            if (mediaType === 'image' && state.image.originalImage) {
+                natW = state.image.originalImage.width;
+                natH = state.image.originalImage.height;
+            } else if (mediaType === 'video' && videoEl.videoWidth) {
+                natW = videoEl.videoWidth;
+                natH = videoEl.videoHeight;
+            }
+
+            if (!natW || !natH) return containerRect;
+
+            const containerRatio = containerRect.width / containerRect.height;
+            const mediaRatio = natW / natH;
+
+            let renderW, renderH, offsetX, offsetY;
+
+            if (mediaRatio > containerRatio) {
+                renderW = containerRect.width;
+                renderH = containerRect.width / mediaRatio;
+                offsetX = 0;
+                offsetY = (containerRect.height - renderH) / 2;
+            } else {
+                renderH = containerRect.height;
+                renderW = containerRect.height * mediaRatio;
+                offsetY = 0;
+                offsetX = (containerRect.width - renderW) / 2;
+            }
+
+            return {
+                left: containerRect.left + offsetX,
+                top: containerRect.top + offsetY,
+                width: renderW,
+                height: renderH,
+                offsetX: offsetX,
+                offsetY: offsetY
+            };
+        }
+
         function switchMediaType(type) {
             if (mediaType === type) return;
             mediaType = type;
             const fileInput = document.getElementById('file-input');
             selectedRatioBox = null;
-            document.getElementById('selection-box').classList.add('hidden');
+            boxEl.classList.add('hidden');
             
             document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
             document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
@@ -174,23 +217,25 @@
                 fileInput.accept = "video/*";
                 if (state.video.file) {
                     document.getElementById('file-label').innerText = "Seçilen: " + state.video.name;
-                    document.getElementById('preview-container').classList.remove('hidden');
-                    document.getElementById('preview-video').classList.remove('hidden');
-                    document.getElementById('preview-canvas').classList.add('hidden');
+                    activeContainer.classList.remove('hidden');
+                    videoEl.classList.remove('hidden');
+                    canvas.classList.add('hidden');
                     videoControlsBar.classList.remove('hidden');
                     document.getElementById('action-btn').disabled = false;
+                    applyLiveVideoBlur();
                 } else {
                     document.getElementById('file-label').innerText = "Video seçmek için dokunun (.mp4, .mov)";
                     resetWorkspaceUI();
                 }
             } else {
                 fileInput.accept = "image/*";
+                if (!videoEl.paused) videoEl.pause();
                 videoControlsBar.classList.add('hidden');
                 if (state.image.file) {
                     document.getElementById('file-label').innerText = "Seçilen: " + state.image.name;
-                    document.getElementById('preview-container').classList.remove('hidden');
-                    document.getElementById('preview-canvas').classList.remove('hidden');
-                    document.getElementById('preview-video').classList.add('hidden');
+                    activeContainer.classList.remove('hidden');
+                    canvas.classList.remove('hidden');
+                    videoEl.classList.add('hidden');
                     drawPreview();
                     document.getElementById('action-btn').disabled = false;
                 } else {
@@ -211,31 +256,66 @@
                 partBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.add('hidden');
                 selectedRatioBox = null;
-                document.getElementById('selection-box').classList.add('hidden');
+                boxEl.classList.add('hidden');
             } else {
                 partBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
                 fullBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.remove('hidden');
             }
-            if (mediaType === 'image') drawPreview();
+
+            if (mediaType === 'image') {
+                drawPreview();
+            } else {
+                applyLiveVideoBlur();
+            }
         }
 
         function resetWorkspaceUI() {
-            document.getElementById('preview-container').classList.add('hidden');
-            document.getElementById('preview-canvas').classList.add('hidden');
-            document.getElementById('preview-video').classList.add('hidden');
+            activeContainer.classList.add('hidden');
+            canvas.classList.add('hidden');
+            videoEl.classList.add('hidden');
             videoControlsBar.classList.add('hidden');
             document.getElementById('action-btn').disabled = true;
             document.getElementById('intensity').value = 0;
             document.getElementById('intensity-val').innerText = "0 px";
             document.getElementById('status-text').innerText = "Sistem Hazır.";
             selectedRatioBox = null;
+            boxEl.classList.add('hidden');
+            videoEl.style.filter = 'none';
+        }
+
+        // Video üzerinde canlı kademeli blur önizlemesi
+        function applyLiveVideoBlur() {
+            const blurVal = parseInt(document.getElementById('intensity').value) || 0;
+            if (mediaType !== 'video') {
+                videoEl.style.filter = 'none';
+                boxEl.style.backdropFilter = 'none';
+                boxEl.style.webkitBackdropFilter = 'none';
+                return;
+            }
+
+            if (blurMode === 'full') {
+                videoEl.style.filter = blurVal > 0 ? `blur(${blurVal}px)` : 'none';
+                boxEl.style.backdropFilter = 'none';
+                boxEl.style.webkitBackdropFilter = 'none';
+            } else {
+                videoEl.style.filter = 'none';
+                if (selectedRatioBox && blurVal > 0) {
+                    boxEl.style.backdropFilter = `blur(${blurVal}px)`;
+                    boxEl.style.webkitBackdropFilter = `blur(${blurVal}px)`;
+                } else {
+                    boxEl.style.backdropFilter = 'none';
+                    boxEl.style.webkitBackdropFilter = 'none';
+                }
+            }
         }
 
         function updateBlur(val) {
             document.getElementById('intensity-val').innerText = val + ' px';
             if (mediaType === 'image' && state.image.originalImage) {
                 requestAnimationFrame(drawPreview);
+            } else if (mediaType === 'video' && state.video.file) {
+                requestAnimationFrame(applyLiveVideoBlur);
             }
         }
 
@@ -244,24 +324,29 @@
                 const file = input.files[0];
                 document.getElementById('file-label').innerText = "Seçilen: " + file.name;
                 document.getElementById('action-btn').disabled = false;
-                document.getElementById('preview-container').classList.remove('hidden');
+                activeContainer.classList.remove('hidden');
+                selectedRatioBox = null;
+                boxEl.classList.add('hidden');
 
                 if (file.type.startsWith('video/')) {
                     if (mediaType !== 'video') switchMediaType('video');
                     state.video.file = file;
                     state.video.name = file.name;
+                    if (state.video.url) URL.revokeObjectURL(state.video.url);
                     state.video.url = URL.createObjectURL(file);
-                    document.getElementById('preview-video').classList.remove('hidden');
-                    document.getElementById('preview-canvas').classList.add('hidden');
+                    videoEl.classList.remove('hidden');
+                    canvas.classList.add('hidden');
                     videoControlsBar.classList.remove('hidden');
                     videoEl.src = state.video.url;
-                    document.getElementById('status-text').innerText = "Video hazır. Alan seçebilirsiniz.";
+                    playPauseBtn.innerText = "▶";
+                    applyLiveVideoBlur();
+                    document.getElementById('status-text').innerText = "Video hazır. Blur kademesini ayarlayabilir veya alan seçebilirsiniz.";
                 } else {
                     if (mediaType !== 'image') switchMediaType('image');
                     state.image.file = file;
                     state.image.name = file.name;
-                    document.getElementById('preview-canvas').classList.remove('hidden');
-                    document.getElementById('preview-video').classList.add('hidden');
+                    canvas.classList.remove('hidden');
+                    videoEl.classList.add('hidden');
                     videoControlsBar.classList.add('hidden');
 
                     const reader = new FileReader();
@@ -271,7 +356,7 @@
                             canvas.width = state.image.originalImage.width;
                             canvas.height = state.image.originalImage.height;
                             drawPreview();
-                            document.getElementById('status-text').innerText = "Fotoğraf hazır. Alan seçebilirsiniz.";
+                            document.getElementById('status-text').innerText = "Fotoğraf hazır. Blur kademesini ayarlayabilir veya alan seçebilirsiniz.";
                         }
                         state.image.originalImage.src = e.target.result;
                     }
@@ -280,38 +365,61 @@
             }
         }
 
-        const activeContainer = document.getElementById('preview-container');
+        // Sürükle-bırak (Drag & Drop) desteği
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-blue-500'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const fileInput = document.getElementById('file-input');
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect(fileInput);
+            }
+        });
 
         function startSelection(clientX, clientY) {
             if (blurMode !== 'partial') return;
             if (mediaType === 'image' && !state.image.originalImage) return;
             if (mediaType === 'video' && !state.video.file) return;
 
-            isDrawing = true;
-            const rect = activeContainer.getBoundingClientRect();
-            startX = clientX - rect.left;
-            startY = clientY - rect.top;
+            const mediaRect = getRenderedMediaRect();
+            const containerRect = activeContainer.getBoundingClientRect();
 
-            const boxEl = document.getElementById('selection-box');
+            // Tıklamayı medyanın gerçek sınırları içine sabitle
+            const clampedX = Math.max(mediaRect.left, Math.min(clientX, mediaRect.left + mediaRect.width));
+            const clampedY = Math.max(mediaRect.top, Math.min(clientY, mediaRect.top + mediaRect.height));
+
+            isDrawing = true;
+            startX = clampedX - containerRect.left;
+            startY = clampedY - containerRect.top;
+
             boxEl.style.left = startX + 'px';
             boxEl.style.top = startY + 'px';
             boxEl.style.width = '0px';
             boxEl.style.height = '0px';
+            boxEl.style.backdropFilter = 'none';
+            boxEl.style.webkitBackdropFilter = 'none';
             boxEl.classList.remove('hidden');
         }
 
         function moveSelection(clientX, clientY) {
             if (!isDrawing || blurMode !== 'partial') return;
-            const rect = activeContainer.getBoundingClientRect();
-            const currentX = clientX - rect.left;
-            const currentY = clientY - rect.top;
+            const mediaRect = getRenderedMediaRect();
+            const containerRect = activeContainer.getBoundingClientRect();
+
+            const clampedX = Math.max(mediaRect.left, Math.min(clientX, mediaRect.left + mediaRect.width));
+            const clampedY = Math.max(mediaRect.top, Math.min(clientY, mediaRect.top + mediaRect.height));
+
+            const currentX = clampedX - containerRect.left;
+            const currentY = clampedY - containerRect.top;
 
             const left = Math.min(startX, currentX);
             const top = Math.min(startY, currentY);
             const width = Math.abs(currentX - startX);
             const height = Math.abs(currentY - startY);
 
-            const boxEl = document.getElementById('selection-box');
             boxEl.style.left = left + 'px';
             boxEl.style.top = top + 'px';
             boxEl.style.width = width + 'px';
@@ -323,29 +431,33 @@
             isDrawing = false;
 
             if (blurMode === 'partial') {
-                const boxEl = document.getElementById('selection-box');
                 const boxRect = boxEl.getBoundingClientRect();
-                const mediaElement = mediaType === 'image' ? canvas : videoEl;
-                const mediaRect = mediaElement.getBoundingClientRect();
+                const mediaRect = getRenderedMediaRect();
 
-                const relLeft = boxRect.left - mediaRect.left;
-                const relTop = boxRect.top - mediaRect.top;
-                const relWidth = boxRect.width;
-                const relHeight = boxRect.height;
+                const relLeft = Math.max(0, boxRect.left - mediaRect.left);
+                const relTop = Math.max(0, boxRect.top - mediaRect.top);
+                const relWidth = Math.min(boxRect.width, mediaRect.width - relLeft);
+                const relHeight = Math.min(boxRect.height, mediaRect.height - relTop);
 
-                if (relWidth > 5 && relHeight > 5) {
+                if (relWidth > 5 && relHeight > 5 && mediaRect.width > 0 && mediaRect.height > 0) {
                     selectedRatioBox = {
                         rx: Math.max(0, Math.min(1, relLeft / mediaRect.width)),
                         ry: Math.max(0, Math.min(1, relTop / mediaRect.height)),
-                        rw: Math.max(0, Math.min(1 - (relLeft / mediaRect.width), relWidth / mediaRect.width)),
-                        rh: Math.max(0, Math.min(1 - (relTop / mediaRect.height), relHeight / mediaRect.height))
+                        rw: Math.max(0, Math.min(1, relWidth / mediaRect.width)),
+                        rh: Math.max(0, Math.min(1, relHeight / mediaRect.height))
                     };
 
-                    document.getElementById('status-text').innerText = "Bölge başarıyla seçildi! İndirebilirsiniz.";
-                    if (mediaType === 'image') drawPreview();
+                    document.getElementById('status-text').innerText = "Bölge başarıyla seçildi! Yoğunluğu ayarlayıp indirebilirsiniz.";
+                    if (mediaType === 'image') {
+                        drawPreview();
+                    } else {
+                        applyLiveVideoBlur();
+                    }
                 } else {
                     boxEl.classList.add('hidden');
                     selectedRatioBox = null;
+                    if (mediaType === 'image') drawPreview();
+                    else applyLiveVideoBlur();
                 }
             }
         }
@@ -368,38 +480,31 @@
         window.addEventListener('touchend', endSelection);
 
         function drawPreview() {
-            if (mediaType === 'image' && !state.image.originalImage) return;
-            const blurVal = parseInt(document.getElementById('intensity').value);
+            if (mediaType !== 'image' || !state.image.originalImage) return;
+            const blurVal = parseInt(document.getElementById('intensity').value) || 0;
 
-            if (mediaType === 'image') {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(state.image.originalImage, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(state.image.originalImage, 0, 0);
 
-                if (blurVal > 0) {
-                    if (blurMode === 'full') {
-                        ctx.filter = `blur(${blurVal}px)`;
-                        ctx.drawImage(state.image.originalImage, 0, 0);
-                        ctx.filter = 'none';
-                    } else if (blurMode === 'partial' && selectedRatioBox) {
-                        const px = selectedRatioBox.rx * canvas.width;
-                        const py = selectedRatioBox.ry * canvas.height;
-                        const pw = selectedRatioBox.rw * canvas.width;
-                        const ph = selectedRatioBox.rh * canvas.height;
+            if (blurVal > 0) {
+                if (blurMode === 'full') {
+                    ctx.save();
+                    ctx.filter = `blur(${blurVal}px)`;
+                    ctx.drawImage(state.image.originalImage, 0, 0);
+                    ctx.restore();
+                } else if (blurMode === 'partial' && selectedRatioBox) {
+                    const px = selectedRatioBox.rx * canvas.width;
+                    const py = selectedRatioBox.ry * canvas.height;
+                    const pw = selectedRatioBox.rw * canvas.width;
+                    const ph = selectedRatioBox.rh * canvas.height;
 
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.rect(px, py, pw, ph);
-                        ctx.clip();
-                        
-                        ctx.filter = `blur(${blurVal}px)`;
-                        ctx.drawImage(state.image.originalImage, 0, 0);
-                        ctx.restore();
-                        ctx.filter = 'none';
-
-                        ctx.strokeStyle = '#3b82f6';
-                        ctx.lineWidth = 4;
-                        ctx.strokeRect(px, py, pw, ph);
-                    }
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(px, py, pw, ph);
+                    ctx.clip();
+                    ctx.filter = `blur(${blurVal}px)`;
+                    ctx.drawImage(state.image.originalImage, 0, 0);
+                    ctx.restore();
                 }
             }
         }
@@ -409,6 +514,11 @@
             const blurIntensity = document.getElementById('intensity').value;
             
             if (!currentFile) return;
+
+            if (blurMode === 'partial' && !selectedRatioBox) {
+                document.getElementById('status-text').innerText = "Lütfen önce medya üzerinde blurlanacak bölgeyi seçin!";
+                return;
+            }
 
             const btn = document.getElementById('action-btn');
             const status = document.getElementById('status-text');
@@ -430,24 +540,21 @@
                     body: formData
                 });
                 
-                if (!response.ok) throw new Error("İşlem hatası");
-
                 const result = await response.json();
-
-                if (result.success) {
-                    status.innerText = "İşlem tamamlandı, cihaza indiriliyor!";
-                    const a = document.createElement('a');
-                    a.href = result.download_url;
-                    a.download = currentFile.name;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                } else {
-                    status.innerText = "Bir hata oluştu!";
+                if (!response.ok || !result.success) {
+                    throw new Error(result.detail || "İşlem hatası");
                 }
+
+                status.innerText = "İşlem tamamlandı, cihaza indiriliyor!";
+                const a = document.createElement('a');
+                a.href = result.download_url;
+                a.download = "blured_" + currentFile.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             } catch (err) {
                 console.error(err);
-                status.innerText = "Sunucu bağlantı hatası!";
+                status.innerText = "Hata: " + (err.message || "Sunucu bağlantı hatası!");
             } finally {
                 btn.disabled = false;
             }
