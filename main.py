@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
 import uuid
-from processor import BlurProcessor
+import json
+from .processor import BlurProcessor
 
 app = FastAPI()
 
@@ -21,8 +22,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
-    # index.html kök dizinde olduğu için direkt okuyoruz
-    html_path = "index.html"
+    html_path = os.path.join(os.path.dirname(__file__), "../frontend/index.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
             return f.read()
@@ -32,7 +32,8 @@ async def get_index():
 async def process_media(
     file: UploadFile = File(...),
     intensity: int = Form(...),
-    media_type: str = Form(...)
+    media_type: str = Form(...),
+    box: str = Form(None)  # Bölgeli blur için JSON koordinatlar
 ):
     file_extension = os.path.splitext(file.filename)[1] or (".mp4" if media_type == "video" else ".jpg")
     unique_name = f"{uuid.uuid4()}{file_extension}"
@@ -41,14 +42,21 @@ async def process_media(
     output_filename = f"blured_{unique_name}"
     output_path = os.path.join(UPLOAD_DIR, output_filename)
 
+    box_data = None
+    if box:
+        try:
+            box_data = json.loads(box)
+        except:
+            pass
+
     try:
         with open(input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         if media_type == "video":
-            BlurProcessor.apply_video_blur(input_path, output_path, intensity)
+            BlurProcessor.apply_video_blur(input_path, output_path, intensity, box_data)
         else:
-            BlurProcessor.apply_progressive_blur(input_path, output_path, intensity)
+            BlurProcessor.apply_progressive_blur(input_path, output_path, intensity, box_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
