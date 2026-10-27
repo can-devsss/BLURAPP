@@ -198,8 +198,13 @@ async function processMedia(){
   if(!start.ok||!data.success)throw new Error(data.detail||"İşlem başlatılamadı.");currentJobId=data.job_id;
   while(isProcessing&&!pollAbort){
    await new Promise(r=>setTimeout(r,700));if(!isProcessing||pollAbort)break;
-   const sr=await fetch(`/api/job-status/${encodeURIComponent(currentJobId)}`);const job=await sr.json().catch(()=>({}));
-   if(!sr.ok)throw new Error(job.detail||"İşlem durumu alınamadı.");
+   let sr,job={};
+   for(let attempt=0;attempt<2;attempt++){
+    try{sr=await fetch(`/api/job-status/${encodeURIComponent(currentJobId)}`);job=await sr.json().catch(()=>({}));if(sr.ok)break;}
+    catch(e){if(attempt===1)throw new Error("Sunucuya ulaşılamadı. Render servisinin çalıştığını ve logları kontrol edin.");}
+    if(attempt===0)await new Promise(r=>setTimeout(r,1200));
+   }
+   if(!sr||!sr.ok)throw new Error(job.detail||"İşlem kaydı sunucuda bulunamadı. Sunucu yeniden başlamış olabilir; Render loglarını kontrol edin.");
    el("progress-bar").style.width=`${Math.max(0,Math.min(100,Number(job.progress)||0))}%`;
    setStatus(job.status==="queued"?"İşlem sırada bekliyor...":`İşleniyor... %${job.progress||0}`);
    if(job.status==="completed"){
