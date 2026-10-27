@@ -27,25 +27,20 @@ app.add_middleware(
 UPLOAD_DIR = "temp_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 20+ kullanıcının aynı anda siteyi çökertmeden işlem yapmasını sağlayan Thread Havuzu ve Görev Yöneticisi
 MAX_WORKERS = min(8, (os.cpu_count() or 2) + 2)
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 
 def cleanup_old_files():
-    """Disk dolup sunucunun çökmesini önlemek için 30 dakikadan eski geçici dosyaları temizler."""
     now = time.time()
     try:
         for fname in os.listdir(UPLOAD_DIR):
             fpath = os.path.join(UPLOAD_DIR, fname)
             if os.path.isfile(fpath) and (now - os.path.getmtime(fpath)) > 1800:
-                try:
-                    os.remove(fpath)
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                try: os.remove(fpath)
+                except: pass
+    except: pass
 
     with JOBS_LOCK:
         expired = [jid for jid, j in JOBS.items() if (now - j.get("created_at", now)) > 1800]
@@ -60,8 +55,9 @@ def _run_blur_job(job_id: str, input_path: str, output_path: str, output_filenam
 
     try:
         with JOBS_LOCK:
-            JOBS[job_id]["status"] = "processing"
-            JOBS[job_id]["progress"] = 5
+            if job_id in JOBS:
+                JOBS[job_id]["status"] = "processing"
+                JOBS[job_id]["progress"] = 5
 
         if media_type == "video":
             BlurProcessor.apply_video_blur(input_path, output_path, intensity, box_data, preview_w, update_progress)
@@ -72,19 +68,19 @@ def _run_blur_job(job_id: str, input_path: str, output_path: str, output_filenam
             raise RuntimeError("Çıktı dosyası oluşturulamadı!")
 
         with JOBS_LOCK:
-            JOBS[job_id]["status"] = "completed"
-            JOBS[job_id]["progress"] = 100
-            JOBS[job_id]["download_url"] = f"/api/download/{output_filename}?name={download_name}"
+            if job_id in JOBS:
+                JOBS[job_id]["status"] = "completed"
+                JOBS[job_id]["progress"] = 100
+                JOBS[job_id]["download_url"] = f"/api/download/{output_filename}?name={download_name}"
     except Exception as e:
         with JOBS_LOCK:
-            JOBS[job_id]["status"] = "failed"
-            JOBS[job_id]["error"] = str(e)
+            if job_id in JOBS:
+                JOBS[job_id]["status"] = "failed"
+                JOBS[job_id]["error"] = str(e)
     finally:
         if os.path.exists(input_path):
-            try:
-                os.remove(input_path)
-            except Exception:
-                pass
+            try: os.remove(input_path)
+            except: pass
 
 @app.get("/", response_class=HTMLResponse)
 def get_index():
@@ -132,7 +128,7 @@ def process_media(
     if box and box.strip() not in ["", "null", "undefined"]:
         try:
             box_data = json.loads(box)
-        except Exception:
+        except:
             box_data = None
 
     try:
@@ -150,7 +146,6 @@ def process_media(
             "error": None
         }
 
-    # İşlemi arka plan havuzuna gönder (Sunucu anında yanıt döner, asla kilitlenmez)
     executor.submit(
         _run_blur_job,
         job_id, input_path, output_path, output_filename,
@@ -169,7 +164,6 @@ def get_job_status(job_id: str):
 
 @app.get("/api/download/{filename}")
 def download_file(filename: str, name: str = None):
-    # Path traversal güvenlik kontrolü
     safe_fname = os.path.basename(filename)
     file_path = os.path.join(UPLOAD_DIR, safe_fname)
     if not os.path.exists(file_path):
