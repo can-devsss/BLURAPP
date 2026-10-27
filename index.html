@@ -8,7 +8,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { 
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif; 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; 
             -webkit-font-smoothing: antialiased;
             touch-action: manipulation;
         }
@@ -27,7 +27,7 @@
             border-radius: 50%;
             background: #ffffff;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             transition: transform 0.15s ease;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
@@ -41,7 +41,7 @@
         }
     </script>
 </head>
-<body id="app-body" class="bg-[#f2f2f7] dark:bg-[#000000] text-slate-900 dark:text-slate-100 min-h-full flex items-center justify-center p-3 sm:p-6 transition-colors duration-300 selection:bg-blue-500 selection:text-white">
+<body id="app-body" class="bg-[#f2f2f7] dark:bg-[#000000] text-slate-900 dark:text-slate-100 min-h-full flex items-center justify-center p-3 sm:p-6 transition-colors duration-300">
 
     <div class="w-full max-w-xl bg-white/85 dark:bg-[#1c1c1e]/90 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_50px_rgba(0,0,0,0.6)] rounded-[36px] p-5 sm:p-8 flex flex-col gap-5 relative">
         
@@ -78,7 +78,7 @@
             <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/5 hidden pointer-events-none z-20 rounded-lg overflow-hidden"></div>
         </div>
 
-        <!-- VİDEO İÇİN ALT KONTROL BARI -->
+        <!-- VİDEO KONTROL BARI -->
         <div id="video-controls-bar" class="hidden flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-9 h-9 shrink-0 flex items-center justify-center bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-all">▶</button>
             <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)" class="w-full cursor-pointer">
@@ -90,28 +90,26 @@
             <button onclick="clearSelection()" id="clear-sel-btn" class="hidden text-[11px] font-bold text-rose-500 hover:underline ml-2 shrink-0">Seçimi Sıfırla</button>
         </div>
 
-        <!-- MİLİMETRİK (0.1 PX) BLUR BARI -->
+        <!-- BLUR BARI -->
         <div class="flex flex-col gap-2.5 bg-slate-100/90 dark:bg-white/5 p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <div class="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
                 <span>Blur Yoğunluğu (Milimetrik Kademe)</span>
                 <div class="flex items-center gap-1.5">
-                    <button onclick="nudgeBlur(-0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all" title="-0.5 px">-</button>
+                    <button onclick="nudgeBlur(-0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all">-</button>
                     <span id="intensity-val" class="px-2.5 py-1 bg-white dark:bg-white/10 rounded-xl text-slate-900 dark:text-white font-extrabold shadow-2xs min-w-[60px] text-center">0.0 px</span>
-                    <button onclick="nudgeBlur(0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all" title="+0.5 px">+</button>
+                    <button onclick="nudgeBlur(0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all">+</button>
                 </div>
             </div>
-            <input type="range" id="intensity" min="0" max="50" step="0.1" value="0" 
-                   oninput="updateBlur(this.value)" 
-                   class="w-full cursor-pointer mt-1">
+            <input type="range" id="intensity" min="0" max="50" step="0.1" value="0" oninput="updateBlur(this.value)" class="w-full cursor-pointer mt-1">
         </div>
 
-        <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-blue-500 dark:hover:border-blue-400 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-white/5 group">
+        <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-blue-500 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-white/5 group">
             <svg class="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center break-all px-2" id="file-label">Medya seçmek için dokunun veya sürükleyin</span>
             <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="handleFileSelect(this)">
         </label>
 
-        <!-- CANLI İLERLEME ÇUBUĞU VE DURUM ALANI -->
+        <!-- İLERLEME VE DURUM -->
         <div class="flex flex-col gap-2">
             <div id="status-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
             <div id="progress-wrapper" class="hidden w-full bg-slate-200 dark:bg-white/10 h-2.5 rounded-full overflow-hidden">
@@ -122,11 +120,6 @@
         <button onclick="processMedia()" id="action-btn" disabled class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
             Önizlemedeki Kademeyle Cihaza İndir
         </button>
-
-        <!-- MOBİL TARAYICILAR İÇİN GARANTİLİ DOĞRUDAN İNDİRME BUTONU -->
-        <a id="direct-download-btn" href="#" download class="hidden w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold text-center shadow-lg shadow-emerald-500/25 transition-all">
-            📥 İşlem Tamamlandı! Dosyayı Cihaza Kaydet
-        </a>
 
     </div>
 
@@ -149,7 +142,6 @@
         const videoProgress = document.getElementById('video-progress');
         const activeContainer = document.getElementById('preview-container');
         const boxEl = document.getElementById('selection-box');
-        const directDownloadBtn = document.getElementById('direct-download-btn');
         
         let isDrawing = false;
         let startX = 0, startY = 0;
@@ -174,10 +166,7 @@
         }
 
         videoEl.addEventListener('loadeddata', () => {
-            // Mobilde siyah ekranı önlemek için ilk kareyi göster
-            if (videoEl.currentTime === 0) {
-                videoEl.currentTime = 0.01;
-            }
+            if (videoEl.currentTime === 0) videoEl.currentTime = 0.01;
         });
 
         videoEl.addEventListener('timeupdate', () => {
@@ -186,9 +175,7 @@
             }
         });
 
-        videoEl.addEventListener('ended', () => {
-            playPauseBtn.innerText = "▶";
-        });
+        videoEl.addEventListener('ended', () => { playPauseBtn.innerText = "▶"; });
 
         function seekVideo(val) {
             if (videoEl.duration) {
@@ -238,7 +225,8 @@
         function clearSelection() {
             selectedRatioBox = null;
             boxEl.classList.add('hidden');
-            document.getElementById('clear-sel-btn').classList.add('hidden');
+            const clearBtn = document.getElementById('clear-sel-btn');
+            if (clearBtn) clearBtn.classList.add('hidden');
             if (mediaType === 'image') drawPreview();
             else applyLiveVideoBlur();
         }
@@ -248,10 +236,9 @@
             mediaType = type;
             const fileInput = document.getElementById('file-input');
             clearSelection();
-            directDownloadBtn.classList.add('hidden');
             
-            document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
-            document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
+            document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all';
+            document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all';
 
             if (type === 'video') {
                 fileInput.accept = "video/*";
@@ -293,12 +280,12 @@
 
             if (mode === 'full') {
                 fullBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
-                partBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
+                partBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
                 infoEl.classList.add('hidden');
                 clearSelection();
             } else {
                 partBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
-                fullBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
+                fullBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
                 infoEl.classList.remove('hidden');
             }
 
@@ -324,14 +311,12 @@
             if (mediaType !== 'video') {
                 videoEl.style.filter = 'none';
                 boxEl.style.backdropFilter = 'none';
-                boxEl.style.webkitBackdropFilter = 'none';
                 return;
             }
 
             if (blurMode === 'full') {
                 videoEl.style.filter = blurVal > 0 ? `blur(${blurVal}px)` : 'none';
                 boxEl.style.backdropFilter = 'none';
-                boxEl.style.webkitBackdropFilter = 'none';
             } else {
                 videoEl.style.filter = 'none';
                 if (selectedRatioBox && blurVal > 0) {
@@ -339,7 +324,6 @@
                     boxEl.style.webkitBackdropFilter = `blur(${blurVal}px)`;
                 } else {
                     boxEl.style.backdropFilter = 'none';
-                    boxEl.style.webkitBackdropFilter = 'none';
                 }
             }
         }
@@ -367,7 +351,6 @@
                 document.getElementById('file-label').innerText = "Seçilen: " + file.name;
                 document.getElementById('action-btn').disabled = false;
                 activeContainer.classList.remove('hidden');
-                directDownloadBtn.classList.add('hidden');
                 clearSelection();
 
                 if (file.type.startsWith('video/')) {
@@ -383,7 +366,7 @@
                     videoEl.load();
                     playPauseBtn.innerText = "▶";
                     applyLiveVideoBlur();
-                    document.getElementById('status-text').innerText = "Video hazır. Milimetrik blur ayarlayabilir veya bölge seçebilirsiniz.";
+                    document.getElementById('status-text').innerText = "Video hazır. Milimetrik blur ayarlayabilirsiniz.";
                 } else {
                     if (mediaType !== 'image') switchMediaType('image');
                     state.image.file = file;
@@ -399,7 +382,7 @@
                             canvas.width = state.image.originalImage.width;
                             canvas.height = state.image.originalImage.height;
                             drawPreview();
-                            document.getElementById('status-text').innerText = "Fotoğraf hazır. Milimetrik blur ayarlayabilir veya bölge seçebilirsiniz.";
+                            document.getElementById('status-text').innerText = "Fotoğraf hazır. Milimetrik blur ayarlayabilirsiniz.";
                         }
                         state.image.originalImage.src = e.target.result;
                     }
@@ -409,11 +392,9 @@
         }
 
         const dropZone = document.getElementById('drop-zone');
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-blue-500'); });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); });
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('border-blue-500');
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 const fileInput = document.getElementById('file-input');
                 fileInput.files = e.dataTransfer.files;
@@ -423,9 +404,6 @@
 
         function startSelection(clientX, clientY) {
             if (blurMode !== 'partial') return;
-            if (mediaType === 'image' && !state.image.originalImage) return;
-            if (mediaType === 'video' && !state.video.file) return;
-
             const mediaRect = getRenderedMediaRect();
             const containerRect = activeContainer.getBoundingClientRect();
 
@@ -440,8 +418,6 @@
             boxEl.style.top = startY + 'px';
             boxEl.style.width = '0px';
             boxEl.style.height = '0px';
-            boxEl.style.backdropFilter = 'none';
-            boxEl.style.webkitBackdropFilter = 'none';
             boxEl.classList.remove('hidden');
         }
 
@@ -488,8 +464,9 @@
                         rh: Math.max(0, Math.min(1, relHeight / mediaRect.height))
                     };
 
-                    document.getElementById('clear-sel-btn').classList.remove('hidden');
-                    document.getElementById('status-text').innerText = "Bölge seçildi! Yoğunluğu ayarlayıp indirebilirsiniz.";
+                    const clearBtn = document.getElementById('clear-sel-btn');
+                    if (clearBtn) clearBtn.classList.remove('hidden');
+                    document.getElementById('status-text').innerText = "Bölge seçildi! İndirebilirsiniz.";
                     if (mediaType === 'image') drawPreview();
                     else applyLiveVideoBlur();
                 } else {
@@ -555,7 +532,7 @@
             if (!currentFile) return;
 
             if (blurMode === 'partial' && !selectedRatioBox) {
-                document.getElementById('status-text').innerText = "⚠️ Lütfen önce medya üzerinde blurlanacak bölgeyi parmağınızla/fareyle seçin!";
+                document.getElementById('status-text').innerText = "⚠️ Lütfen önce blurlanacak bölgeyi seçin!";
                 return;
             }
 
@@ -565,10 +542,9 @@
             const progBar = document.getElementById('progress-bar');
 
             btn.disabled = true;
-            directDownloadBtn.classList.add('hidden');
             progWrap.classList.remove('hidden');
             progBar.style.width = '5%';
-            status.innerText = "Dosya sunucuya yükleniyor...";
+            status.innerText = "İşlem başlatılıyor...";
 
             const mediaRect = getRenderedMediaRect();
             const formData = new FormData();
@@ -594,7 +570,6 @@
 
                 const jobId = startData.job_id;
 
-                // Sunucuyu kilitlemeden her 800ms'de bir ilerleme durumunu takip et
                 while (true) {
                     await new Promise(r => setTimeout(r, 800));
                     const statusRes = await fetch(`/api/job-status/${jobId}`);
@@ -602,26 +577,22 @@
                     
                     const job = await statusRes.json();
                     progBar.style.width = `${job.progress || 10}%`;
-                    status.innerText = `Sunucuda milimetrik işleniyor... %${job.progress || 10}`;
+                    status.innerText = `Sunucuda işleniyor... %${job.progress || 10}`;
 
                     if (job.status === 'completed') {
                         progBar.style.width = '100%';
-                        status.innerText = "✅ İşlem tamamlandı! Cihazınıza indiriliyor...";
+                        status.innerText = "✅ İşlem tamamlandı! Cihaza indiriliyor...";
 
-                        directDownloadBtn.href = job.download_url;
-                        directDownloadBtn.setAttribute('download', 'blured_' + currentFile.name);
-                        directDownloadBtn.classList.remove('hidden');
-
-                        // Otomatik indirmeyi tetikle
+                        // Doğrudan arka planda otomatik indirme tetiklenir, ekstra kafa karıştırıcı buton çıkmaz
                         window.location.assign(job.download_url);
                         break;
                     } else if (job.status === 'failed') {
-                        throw new Error(job.error || "Medya işlenirken sunucu hatası oluştu.");
+                        throw new Error(job.error || "Sunucu işleme hatası oluştu.");
                     }
                 }
             } catch (err) {
                 console.error(err);
-                status.innerText = "❌ Hata: " + (err.message || "Sunucu bağlantı hatası!");
+                status.innerText = "❌ Hata: " + (err.message || "Bağlantı hatası!");
                 progWrap.classList.add('hidden');
             } finally {
                 btn.disabled = false;
