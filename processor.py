@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import subprocess
+import os
 
 class BlurProcessor:
     @staticmethod
@@ -12,7 +14,6 @@ class BlurProcessor:
             cv2.imwrite(output_path, img)
             return output_path
 
-        # Önizleme ile birebir eşleşen güçlü kernel katsayısı
         ksize = int(blur_strength) * 3 + 1
         if ksize % 2 == 0:
             ksize += 1
@@ -20,7 +21,6 @@ class BlurProcessor:
         h, w = img.shape[:2]
 
         if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
-            # Yüzdesel oranları gerçek piksele çeviriyoruz (Asla şaşmaz)
             x = int(box_data['rx'] * w)
             y = int(box_data['ry'] * h)
             bw = int(box_data['rw'] * w)
@@ -50,8 +50,11 @@ class BlurProcessor:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         
+        # Geçici sessiz işlenmiş video
+        temp_silent_output = output_path + "_temp.mp4"
+        
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
 
         ksize = int(blur_strength) * 3 + 1
         if ksize % 2 == 0:
@@ -84,4 +87,39 @@ class BlurProcessor:
 
         cap.release()
         out.release()
+
+        # SESİ KORUMA VE BİRLEŞTİRME AŞAMASI (FFmpeg ile Orijinal Sesi Ekliyoruz)
+        try:
+            # Orijinal videoda ses kanalı var mı kontrol edelim
+            probe_cmd = ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
+            has_audio = subprocess.run(probe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
+
+            if has_audio:
+                # Orijinal ses ile işlenmiş videoyu kusursuzca harmanla
+                ffmpeg_cmd = [
+                    "ffmpeg", "-y",
+                    "-i", temp_silent_output,
+                    "-i", video_path,
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-map", "0:v:0",
+                    "-map", "1:a:0?",
+                    "-shortest",
+                    output_path
+                ]
+            else:
+                # Ses yoksa direkt kopyala
+                ffmpeg_cmd = ["ffmpeg", "-y", "-i", temp_silent_output, "-c", "copy", output_path]
+
+            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception as e:
+            print(f"FFmpeg ses birleştirme uyarısı: {e}")
+            # FFmpeg hata verirse en azından sessiz videoyu çıktı olarak bırak
+            if os.path.exists(temp_silent_output):
+                os.replace(temp_silent_output, output_path)
+        finally:
+            # Geçici dosyayı temizle
+            if os.path.exists(temp_silent_output):
+                os.remove(temp_silent_output)
+
         return output_path
