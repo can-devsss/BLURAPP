@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable
 import cv2
 import numpy as np
+from PIL import Image, ImageOps
 
 Progress = Callable[[int], None]
 
@@ -15,9 +16,26 @@ class BlurProcessor:
 
     @staticmethod
     def _read_image_safe(path: str):
-        data = np.fromfile(path, dtype=np.uint8)
-        if data.size == 0: return None
-        return cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
+        """Read image and apply EXIF orientation before any blur coordinates are used."""
+        try:
+            with Image.open(path) as source:
+                oriented = ImageOps.exif_transpose(source)
+                # Keep alpha when present; normalize palette and uncommon modes.
+                if oriented.mode not in ("RGB", "RGBA", "L"):
+                    oriented = oriented.convert("RGBA" if "transparency" in oriented.info else "RGB")
+                arr = np.asarray(oriented).copy()
+                if arr.ndim == 2:  # grayscale
+                    return arr
+                if arr.shape[2] == 4:  # RGBA -> BGRA for OpenCV
+                    return cv2.cvtColor(arr, cv2.COLOR_RGBA2BGRA)
+                return cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
+        except Exception:
+            # Fallback for formats Pillow cannot decode; IMREAD_COLOR applies EXIF orientation
+            # in OpenCV builds that support it (unlike IMREAD_UNCHANGED).
+            data = np.fromfile(path, dtype=np.uint8)
+            if data.size == 0:
+                return None
+            return cv2.imdecode(data, cv2.IMREAD_COLOR)
 
     @staticmethod
     def _write_image_safe(path: str, img):
@@ -59,15 +77,15 @@ class BlurProcessor:
         x=max(0,min(int(round(box["rx"]*w)),w-1)); y=max(0,min(int(round(box["ry"]*h)),h-1))
         x2=max(x+1,min(w,int(round((box["rx"]+box["rw"])*w))))
         y2=max(y+1,min(h,int(round((box["ry"]+box["rh"])*h))))
-        # Blur the entire frame first to avoid ROI-edge artifacts, then composite only selected area.
+        # Blur the full frame to avoid ROI-edge artifacts, then copy only the selected area.
+        # A binary mask avoids multiple full-frame float32 allocations, which can OOM on
+        # 4K phone videos on small cloud instances.
         blurred=BlurProcessor._blur_image(img,sigma)
         mask=np.zeros((h,w),dtype=np.uint8)
         mask[y:y2,x:x2]=255
-        # Slight feather (scaled to region dimensions) makes edges less abrupt without changing UI.
-        feather=max(1,min(12,int(round(min(x2-x,y2-y)*0.025))))
-        mask=cv2.GaussianBlur(mask,(0,0),sigmaX=feather,sigmaY=feather)
-        alpha=(mask.astype(np.float32)/255.0)[...,None]
-        return np.clip(img.astype(np.float32)*(1-alpha)+blurred.astype(np.float32)*alpha,0,255).astype(img.dtype)
+        result=img.copy()
+        cv2.copyTo(blurred, mask, result)
+        return result
 
     @staticmethod
     def apply_progressive_blur(image_path: str, output_path: str, blur_strength: float,
