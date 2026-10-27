@@ -1,195 +1,157 @@
+from __future__ import annotations
+import os, shutil, subprocess, tempfile
+from pathlib import Path
+from typing import Callable
 import cv2
 import numpy as np
-import subprocess
-import os
-import shutil
-from typing import Callable, Optional
+
+Progress = Callable[[int], None]
 
 class BlurProcessor:
     @staticmethod
-    def _read_image_safe(image_path: str):
-        with open(image_path, "rb") as f:
-            file_bytes = np.asarray(bytearray(f.read()), dtype=np.uint8)
-        return cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    def _check_cancel(cancel_event):
+        if cancel_event is not None and cancel_event.is_set():
+            raise InterruptedError("İşlem kullanıcı tarafından iptal edildi.")
 
     @staticmethod
-    def _write_image_safe(output_path: str, img):
-        ext = os.path.splitext(output_path)[1].lower() or ".jpg"
-        params = [cv2.IMWRITE_JPEG_QUALITY, 95] if ext in [".jpg", ".jpeg"] else []
-        success, encoded_img = cv2.imencode(ext, img, params)
-        if success:
-            with open(output_path, "wb") as f:
-                encoded_img.tofile(f)
+    def _read_image_safe(path: str):
+        data = np.fromfile(path, dtype=np.uint8)
+        if data.size == 0: return None
+        return cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
 
     @staticmethod
-    def _compute_exact_sigma(blur_px: float, media_width: int, media_height: int, preview_w: float = 360.0) -> float:
-        if blur_px <= 0:
-            return 0.0
-        ref_w = max(100.0, float(preview_w or 360.0))
-        scale_factor = float(media_width) / ref_w
-        # Maksimum blur seviyesi sınırlandırılarak görüntünün bozulması engellendi
-        sigma = float(blur_px) * scale_factor
-        return max(0.2, sigma)
+    def _write_image_safe(path: str, img):
+        ext = Path(path).suffix.lower()
+        if ext not in {".jpg",".jpeg",".png",".webp",".bmp",".tif",".tiff"}: ext = ".jpg"
+        # OpenCV may not encode some formats in a given build; fail explicitly instead of silent success.
+        params = [cv2.IMWRITE_JPEG_QUALITY, 95] if ext in {".jpg",".jpeg"} else []
+        ok, encoded = cv2.imencode(ext, img, params)
+        if not ok: raise RuntimeError(f"Görsel {ext} formatında kodlanamadı.")
+        try: encoded.tofile(path)
+        except OSError as exc: raise RuntimeError(f"Çıktı dosyası yazılamadı: {exc}") from exc
 
     @staticmethod
-    def _apply_exact_gaussian(img: np.ndarray, sigma: float) -> np.ndarray:
-        if sigma <= 0.05:
-            return img
+    def _compute_sigma(blur_px: float, media_width: int, preview_w: float = 360.0) -> float:
+        if blur_px <= 0: return 0.0
+        if not np.isfinite(blur_px) or blur_px > 15: raise ValueError("Blur değeri 0–15 aralığında olmalı.")
+        ref_w = max(100.0, min(5000.0, float(preview_w or 360.0)))
+        return max(0.0, float(blur_px) * max(1, media_width) / ref_w)
+
+    @staticmethod
+    def _blur_image(img: np.ndarray, sigma: float) -> np.ndarray:
+        if sigma <= 0.05: return img.copy()
+        # OpenCV GaussianBlur avoids browser-dependent CSS/canvas filter differences in export.
+        # Limit huge kernels by downsampling, but keep scale bounded and predictable.
         h, w = img.shape[:2]
-        if sigma > 10.0 and min(h, w) > 64:
-            scale = max(0.2, min(1.0, 6.0 / sigma))
-            small_w = max(2, int(w * scale))
-            small_h = max(2, int(h * scale))
-            small_sigma = sigma * scale
-            small_img = cv2.resize(img, (small_w, small_h), interpolation=cv2.INTER_AREA)
-            blurred_small = cv2.GaussianBlur(small_img, (0, 0), sigmaX=small_sigma, sigmaY=small_sigma)
-            return cv2.resize(blurred_small, (w, h), interpolation=cv2.INTER_LINEAR)
-        else:
-            return cv2.GaussianBlur(img, (0, 0), sigmaX=sigma, sigmaY=sigma)
+        if sigma > 40 and min(h,w) > 128:
+            scale = min(1.0, max(0.025, 12.0 / sigma))
+            sw, sh = max(2, round(w*scale)), max(2, round(h*scale))
+            small = cv2.resize(img, (sw,sh), interpolation=cv2.INTER_AREA)
+            small = cv2.GaussianBlur(small, (0,0), sigmaX=max(.1,sigma*scale), sigmaY=max(.1,sigma*scale))
+            return cv2.resize(small, (w,h), interpolation=cv2.INTER_LINEAR)
+        return cv2.GaussianBlur(img, (0,0), sigmaX=sigma, sigmaY=sigma)
 
     @staticmethod
-    def apply_progressive_blur(
-        image_path: str,
-        output_path: str,
-        blur_strength: float,
-        box_data: dict = None,
-        preview_w: float = 360.0,
-        progress_cb: Optional[Callable[[int], None]] = None
-    ):
-        if progress_cb: progress_cb(15)
-        img = BlurProcessor._read_image_safe(image_path)
-        if img is None:
-            raise ValueError("Görsel okunamadı veya bozuk!")
+    def _apply_region(img: np.ndarray, sigma: float, box: dict | None) -> np.ndarray:
+        if sigma <= 0.05: return img
+        h,w=img.shape[:2]
+        if not box: return BlurProcessor._blur_image(img, sigma)
+        x=max(0,min(int(round(box["rx"]*w)),w-1)); y=max(0,min(int(round(box["ry"]*h)),h-1))
+        x2=max(x+1,min(w,int(round((box["rx"]+box["rw"])*w))))
+        y2=max(y+1,min(h,int(round((box["ry"]+box["rh"])*h))))
+        # Blur the entire frame first to avoid ROI-edge artifacts, then composite only selected area.
+        blurred=BlurProcessor._blur_image(img,sigma)
+        mask=np.zeros((h,w),dtype=np.uint8)
+        mask[y:y2,x:x2]=255
+        # Slight feather (scaled to region dimensions) makes edges less abrupt without changing UI.
+        feather=max(1,min(12,int(round(min(x2-x,y2-y)*0.025))))
+        mask=cv2.GaussianBlur(mask,(0,0),sigmaX=feather,sigmaY=feather)
+        alpha=(mask.astype(np.float32)/255.0)[...,None]
+        return np.clip(img.astype(np.float32)*(1-alpha)+blurred.astype(np.float32)*alpha,0,255).astype(img.dtype)
 
-        h, w = img.shape[:2]
-        blur_val = float(blur_strength)
-
-        if blur_val <= 0:
-            BlurProcessor._write_image_safe(output_path, img)
-            if progress_cb: progress_cb(100)
-            return output_path
-
-        sigma = BlurProcessor._compute_exact_sigma(blur_val, w, h, preview_w)
-        if progress_cb: progress_cb(50)
-
-        if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
-            x = max(0, min(int(round(float(box_data['rx']) * w)), w - 1))
-            y = max(0, min(int(round(float(box_data['ry']) * h)), h - 1))
-            bw = max(2, min(int(round(float(box_data['rw']) * w)), w - x))
-            bh = max(2, min(int(round(float(box_data['rh']) * h)), h - y))
-
-            roi = img[y:y+bh, x:x+bw]
-            if roi.size > 0:
-                img[y:y+bh, x:x+bw] = BlurProcessor._apply_exact_gaussian(roi, sigma)
-        else:
-            img = BlurProcessor._apply_exact_gaussian(img, sigma)
-
+    @staticmethod
+    def apply_progressive_blur(image_path: str, output_path: str, blur_strength: float,
+                               box_data: dict | None=None, preview_w: float=360.0,
+                               progress_cb: Progress | None=None, cancel_event=None):
+        BlurProcessor._check_cancel(cancel_event)
+        if progress_cb: progress_cb(10)
+        img=BlurProcessor._read_image_safe(image_path)
+        if img is None: raise ValueError("Görsel okunamadı veya bozuk.")
+        h,w=img.shape[:2]
+        if w<1 or h<1: raise ValueError("Görsel boyutları geçersiz.")
+        sigma=BlurProcessor._compute_sigma(float(blur_strength),w,preview_w)
+        BlurProcessor._check_cancel(cancel_event)
+        if progress_cb: progress_cb(45)
+        result=BlurProcessor._apply_region(img,sigma,box_data)
+        BlurProcessor._check_cancel(cancel_event)
         if progress_cb: progress_cb(85)
-        BlurProcessor._write_image_safe(output_path, img)
+        BlurProcessor._write_image_safe(output_path,result)
         if progress_cb: progress_cb(100)
         return output_path
 
     @staticmethod
-    def apply_video_blur(
-        video_path: str,
-        output_path: str,
-        blur_strength: float,
-        box_data: dict = None,
-        preview_w: float = 360.0,
-        progress_cb: Optional[Callable[[int], None]] = None
-    ):
-        if progress_cb: progress_cb(10)
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            raise ValueError("Video dosyası açılamadı!")
+    def _find_ffmpeg():
+        exe=shutil.which("ffmpeg")
+        if exe: return exe
+        try:
+            import imageio_ffmpeg
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            return None
 
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        if not fps or fps <= 0 or np.isnan(fps) or fps > 240:
-            fps = 30.0
-
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
-        blur_val = float(blur_strength)
-        sigma = BlurProcessor._compute_exact_sigma(blur_val, width, height, preview_w)
-
-        temp_silent_output = output_path + "_temp_silent.mp4"
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
-
-        if not out.isOpened():
-            fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
-
-        if not out.isOpened():
-            cap.release()
-            raise RuntimeError("Video yazıcı sunucuda başlatılamadı!")
-
-        has_box = bool(box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']))
-        if has_box:
-            x = max(0, min(int(round(float(box_data['rx']) * width)), width - 1))
-            y = max(0, min(int(round(float(box_data['ry']) * height)), height - 1))
-            bw = max(2, min(int(round(float(box_data['rw']) * width)), width - x))
-            bh = max(2, min(int(round(float(box_data['rh']) * height)), height - y))
-
-        frame_idx = 0
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            if blur_val > 0:
-                if has_box:
-                    roi = frame[y:y+bh, x:x+bw]
-                    if roi.size > 0:
-                        frame[y:y+bh, x:x+bw] = BlurProcessor._apply_exact_gaussian(roi, sigma)
-                else:
-                    frame = BlurProcessor._apply_exact_gaussian(frame, sigma)
-
-            out.write(frame)
-            frame_idx += 1
-
-            if progress_cb and total_frames > 0 and frame_idx % 5 == 0:
-                pct = min(80, int(10 + (frame_idx / total_frames) * 70))
-                progress_cb(pct)
-
-        cap.release()
-        out.release()
-        if progress_cb: progress_cb(85)
-
-        ffmpeg_exe = shutil.which("ffmpeg")
-        if not ffmpeg_exe:
-            try:
-                import imageio_ffmpeg
-                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-            except Exception:
-                ffmpeg_exe = None
-
-        if ffmpeg_exe and os.path.exists(temp_silent_output):
-            try:
-                ffmpeg_cmd = [
-                    ffmpeg_exe, "-y",
-                    "-i", temp_silent_output,
-                    "-i", video_path,
-                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
-                    "-pix_fmt", "yuv420p",
-                    "-movflags", "+faststart",
-                    "-c:a", "aac", "-b:a", "128k",
-                    "-map", "0:v:0", "-map", "1:a:0?",
-                    "-shortest", output_path
-                ]
-                subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=300)
-            except Exception as e:
-                print(f"FFmpeg uyarı: {e}")
-                if os.path.exists(temp_silent_output):
-                    os.replace(temp_silent_output, output_path)
-            finally:
-                if os.path.exists(temp_silent_output):
-                    try: os.remove(temp_silent_output)
-                    except: pass
-        else:
-            if os.path.exists(temp_silent_output):
-                os.replace(temp_silent_output, output_path)
-
+    @staticmethod
+    def apply_video_blur(video_path: str, output_path: str, blur_strength: float,
+                         box_data: dict | None=None, preview_w: float=360.0,
+                         progress_cb: Progress | None=None, cancel_event=None):
+        BlurProcessor._check_cancel(cancel_event)
+        cap=cv2.VideoCapture(video_path)
+        if not cap.isOpened(): raise ValueError("Video açılamadı veya desteklenmeyen codec kullanılıyor.")
+        width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)); height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps=float(cap.get(cv2.CAP_PROP_FPS) or 0)
+        total=int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        if width<1 or height<1: cap.release(); raise ValueError("Video boyutları okunamadı.")
+        if not np.isfinite(fps) or fps<=0 or fps>240: fps=30.0
+        sigma=BlurProcessor._compute_sigma(float(blur_strength),width,preview_w)
+        silent_path=output_path+".temp_silent.mp4"
+        writer=cv2.VideoWriter(silent_path,cv2.VideoWriter_fourcc(*"mp4v"),fps,(width,height))
+        if not writer.isOpened():
+            cap.release(); writer.release(); Path(silent_path).unlink(missing_ok=True)
+            raise RuntimeError("Video yazıcısı başlatılamadı. OpenCV FFmpeg desteğini kontrol edin.")
+        frame_idx=0
+        try:
+            while True:
+                BlurProcessor._check_cancel(cancel_event)
+                ok,frame=cap.read()
+                if not ok: break
+                if sigma>0.05: frame=BlurProcessor._apply_region(frame,sigma,box_data)
+                writer.write(frame); frame_idx+=1
+                if progress_cb and total>0 and frame_idx%3==0:
+                    progress_cb(min(78,int(8+70*frame_idx/total)))
+        finally:
+            cap.release(); writer.release()
+        BlurProcessor._check_cancel(cancel_event)
+        if frame_idx==0 or not os.path.isfile(silent_path) or os.path.getsize(silent_path)==0:
+            raise RuntimeError("Videodan işlenebilir kare alınamadı.")
+        if progress_cb: progress_cb(82)
+        ffmpeg=BlurProcessor._find_ffmpeg()
+        if not ffmpeg:
+            # A silent file is not silently presented as a full-success export.
+            raise RuntimeError("FFmpeg bulunamadı. Video sesi korunarak dışa aktarmak için requirements.txt paketlerini kurun.")
+        # Map the processed video and optional original audio. Preserve audio when present.
+        cmd=[ffmpeg,"-y","-i",silent_path,"-i",video_path,
+             "-map","0:v:0","-map","1:a?","-c:v","libx264","-preset","veryfast","-crf","20",
+             "-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-af","aresample=async=1:first_pts=0",
+             "-shortest","-movflags","+faststart",output_path]
+        try:
+            BlurProcessor._check_cancel(cancel_event)
+            result=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=1800,check=False)
+            if result.returncode != 0:
+                detail=(result.stderr or "Bilinmeyen FFmpeg hatası")[-1200:]
+                raise RuntimeError("Video/ses birleştirme başarısız: "+detail)
+            if not os.path.isfile(output_path) or os.path.getsize(output_path)==0:
+                raise RuntimeError("FFmpeg çıktı dosyası oluşturamadı.")
+        finally:
+            Path(silent_path).unlink(missing_ok=True)
+        BlurProcessor._check_cancel(cancel_event)
         if progress_cb: progress_cb(100)
         return output_path
