@@ -113,19 +113,16 @@ class BlurProcessor:
         sigma = BlurProcessor._compute_exact_sigma(blur_val, width, height, preview_w)
 
         temp_silent_output = output_path + "_temp_silent.mp4"
-        
-        # Linux/Render sunucularında en garanti codec XVID veya mp4v dir.
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
 
         if not out.isOpened():
-            # Alternatif codec dene
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
             out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
-            
+
         if not out.isOpened():
             cap.release()
-            raise RuntimeError("Video yazıcı (VideoWriter) sunucuda başlatılamadı!")
+            raise RuntimeError("Video yazıcı (VideoWriter) başlatılamadı!")
 
         has_box = bool(box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']))
         if has_box:
@@ -151,7 +148,7 @@ class BlurProcessor:
             out.write(frame)
             frame_idx += 1
 
-            if progress_cb and total_frames > 0 and frame_idx % 10 == 0:
+            if progress_cb and total_frames > 0 and frame_idx % 5 == 0:
                 pct = min(80, int(10 + (frame_idx / total_frames) * 70))
                 progress_cb(pct)
 
@@ -159,7 +156,6 @@ class BlurProcessor:
         out.release()
         if progress_cb: progress_cb(85)
 
-        # FFmpeg ile kusursuz H.264 dönüştürme ve ses ekleme
         ffmpeg_exe = shutil.which("ffmpeg")
         if not ffmpeg_exe:
             try:
@@ -183,7 +179,7 @@ class BlurProcessor:
                 ]
                 subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=300)
             except Exception as e:
-                print(f"FFmpeg dönüştürme hatası: {e}")
+                print(f"FFmpeg uyarı: {e}")
                 if os.path.exists(temp_silent_output):
                     os.replace(temp_silent_output, output_path)
             finally:
