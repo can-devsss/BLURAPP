@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html lang="tr" id="app-html">
+<html lang="tr" id="app-html" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAN STUDIO - Blur Lab</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CAN STUDIO - iOS Blur Lab</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif; 
+            -webkit-font-smoothing: antialiased;
+        }
         input[type="range"] {
             -webkit-appearance: none;
             height: 6px;
@@ -18,19 +21,16 @@
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
-            background: #0f172a;
+            background: #ffffff;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-            transition: transform 0.1s ease;
-        }
-        .dark input[type="range"]::-webkit-slider-thumb {
-            background: #f8fafc;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+            transition: transform 0.15s ease, background-color 0.15s ease;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.15);
+            transform: scale(1.1);
         }
     </style>
     <script>
@@ -40,70 +40,76 @@
         }
     </script>
 </head>
-<body id="app-body" class="bg-[#f8fafc] dark:bg-[#06080f] text-slate-900 dark:text-slate-100 flex items-center justify-center min-h-screen m-0 transition-colors duration-300 py-10 selection:bg-slate-900 selection:text-white dark:selection:bg-white dark:selection:text-slate-900">
+<body id="app-body" class="bg-[#f2f2f7] dark:bg-[#000000] text-slate-900 dark:text-slate-100 min-h-full flex items-center justify-center p-4 sm:p-6 transition-colors duration-300 selection:bg-blue-500 selection:text-white">
 
-    <div class="w-[660px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_25px_60px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.4)] rounded-[32px] p-8 flex flex-col gap-6 relative">
+    <!-- Ana iOS Kart Konteynerı -->
+    <div class="w-full max-w-xl bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.5)] rounded-[36px] p-6 sm:p-8 flex flex-col gap-6 relative">
         
-        <!-- Üst Bar -->
-        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
-            <div class="w-8"></div>
-            <div class="text-xs font-extrabold tracking-[0.25em] text-slate-900 dark:text-white uppercase text-center">CAN STUDIO</div>
-            <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-200 shadow-xs" title="Tema Değiştir">
-                <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 4 4 0 018 0z"></path></svg>
+        <!-- Üst Bar: iOS Navigasyon Başlığı -->
+        <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-4">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+            </div>
+            <div class="text-[11px] font-extrabold tracking-[0.3em] text-slate-400 dark:text-slate-500 uppercase text-center">CAN STUDIO</div>
+            <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 transition-all text-slate-700 dark:text-slate-200 shadow-xs" title="Tema Değiştir">
+                <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
             </button>
         </div>
 
+        <!-- Başlık Bölümü -->
         <div>
-            <h1 class="text-2xl font-extrabold tracking-tight">Kademeli ve Bölgeli Medya Konsolu</h1>
-            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">İster tam ekran blur uygulayın, ister medya üzerinde alan seçerek sadece o kısmı blurlaştırın.</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Kademeli Medya Lab</h1>
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Fotoğraf veya videolarınıza tam ekran ya da seçmeli bölgesel blur uygulayın.</p>
         </div>
 
-        <!-- Sekmeler -->
-        <div class="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-            <button onclick="switchMediaType('image')" id="tab-image" class="py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all">Fotoğraf Modu</button>
-            <button onclick="switchMediaType('video')" id="tab-video" class="py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Video Modu</button>
+        <!-- iOS Segmented Control: Medya Modu -->
+        <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
+            <button onclick="switchMediaType('image')" id="tab-image" class="py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-sm transition-all">Fotoğraf Modu</button>
+            <button onclick="switchMediaType('video')" id="tab-video" class="py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Video Modu</button>
         </div>
 
-        <!-- Blur Türü Seçimi -->
-        <div class="flex gap-2">
-            <button onclick="setBlurMode('full')" id="mode-full" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 transition-all">Tam Ekran Blur</button>
-            <button onclick="setBlurMode('partial')" id="mode-partial" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all">Bölgesel (Seçmeli) Blur</button>
+        <!-- iOS Segmented Control: Blur Türü -->
+        <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
+            <button onclick="setBlurMode('full')" id="mode-full" class="py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-sm transition-all">Tam Ekran Blur</button>
+            <button onclick="setBlurMode('partial')" id="mode-partial" class="py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Bölgesel (Seçmeli)</button>
         </div>
 
         <!-- Önizleme Alanı -->
-        <div id="preview-container" class="hidden relative w-full h-72 bg-slate-950 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-inner select-none">
+        <div id="preview-container" class="hidden relative w-full h-64 sm:h-72 bg-black rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner select-none group">
             <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
             <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" muted playsinline></video>
-            <!-- Görsel Seçim Çerçevesi -->
-            <div id="selection-box" class="absolute border-2 border-dashed border-cyan-400 bg-cyan-500/20 hidden pointer-events-none z-20"></div>
+            <!-- Seçim Çerçevesi -->
+            <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/20 hidden pointer-events-none z-20 rounded-lg"></div>
         </div>
-        <div id="selection-info" class="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 text-center hidden">
-            💡 Bölgesel Mod Aktif: Medya üzerinde blurlanmasını istediğiniz alanı fareyle basıp sürükleyerek seçin.
+        <div id="selection-info" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 text-center hidden">
+            ✨ Bölgesel Mod Aktif: Medya üzerinde blurlanmasını istediğiniz alanı parmağınızla ya da fareyle sürükleyerek seçin.
         </div>
 
-        <!-- Slider -->
-        <div class="flex flex-col gap-2 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/60">
+        <!-- Slider Kartı -->
+        <div class="flex flex-col gap-2 bg-slate-100/80 dark:bg-white/5 p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <div class="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
                 <span>Blur Yoğunluğu</span>
-                <span id="intensity-val" class="px-2.5 py-1 bg-slate-200/60 dark:bg-slate-700 rounded-lg text-slate-900 dark:text-white font-extrabold">0 px</span>
+                <span id="intensity-val" class="px-2.5 py-1 bg-white dark:bg-white/10 rounded-xl text-slate-900 dark:text-white font-extrabold shadow-2xs">0 px</span>
             </div>
             <input type="range" id="intensity" min="0" max="50" value="0" 
                    oninput="updateBlur(this.value)" 
                    class="w-full cursor-pointer mt-1">
         </div>
 
-        <!-- Dosya Seçim Alanı -->
-        <label id="drop-zone" class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-slate-800/20 group">
-            <svg class="w-8 h-8 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center" id="file-label">Medya seçmek için tıklayın veya sürükleyin</span>
+        <!-- Dosya Yükleme Alanı (Dropzone) -->
+        <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-blue-500 dark:hover:border-blue-400 rounded-3xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-white/5 group">
+            <svg class="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center" id="file-label">Medya seçmek için dokunun veya sürükleyin</span>
             <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(this)">
         </label>
 
         <!-- Durum Çubuğu -->
-        <div id="status-text" class="text-xs font-bold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
+        <div id="status-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
 
-        <!-- İndir Butonu -->
-        <button onclick="processMedia()" id="action-btn" disabled class="w-full py-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-xs font-extrabold shadow-lg hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+        <!-- İşlem / İndir Butonu -->
+        <button onclick="processMedia()" id="action-btn" disabled class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
             Önizlemedeki Seviyeyle Cihaza İndir
         </button>
 
@@ -117,7 +123,7 @@
         
         let mediaType = 'image';
         let blurMode = 'full'; 
-        let selectedBox = null; // Gerçek piksel cinsinden {x, y, width, height}
+        let selectedBox = null;
 
         let canvas = document.getElementById('preview-canvas');
         let ctx = canvas.getContext('2d');
@@ -137,8 +143,8 @@
             selectedBox = null;
             document.getElementById('selection-box').classList.add('hidden');
             
-            document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
-            document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
+            document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-sm transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
+            document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-sm transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
 
             if (type === 'video') {
                 fileInput.accept = "video/*";
@@ -149,7 +155,7 @@
                     document.getElementById('preview-canvas').classList.add('hidden');
                     document.getElementById('action-btn').disabled = false;
                 } else {
-                    document.getElementById('file-label').innerText = "Video seçmek için tıklayın (.mp4, .mov)";
+                    document.getElementById('file-label').innerText = "Video seçmek için dokunun (.mp4, .mov)";
                     resetWorkspaceUI();
                 }
             } else {
@@ -162,7 +168,7 @@
                     drawPreview();
                     document.getElementById('action-btn').disabled = false;
                 } else {
-                    document.getElementById('file-label').innerText = "Fotoğraf seçmek için tıklayın";
+                    document.getElementById('file-label').innerText = "Fotoğraf seçmek için dokunun";
                     resetWorkspaceUI();
                 }
             }
@@ -175,14 +181,14 @@
             const infoEl = document.getElementById('selection-info');
 
             if (mode === 'full') {
-                fullBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 transition-all";
-                partBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all";
+                fullBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-sm transition-all";
+                partBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.add('hidden');
                 selectedBox = null;
                 document.getElementById('selection-box').classList.add('hidden');
             } else {
-                partBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl bg-cyan-600 text-white transition-all";
-                fullBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all";
+                partBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-sm transition-all";
+                fullBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.remove('hidden');
             }
             drawPreview();
@@ -248,18 +254,18 @@
             }
         }
 
-        // --- GELİŞMİŞ HASSAS FARE SEÇİM MOTORU (Görsel ve Video için ortak) ---
+        // --- HASSAS FARE & DOKUNMATİK SEÇİM MOTORU (Responsive) ---
         const activeContainer = document.getElementById('preview-container');
 
-        activeContainer.addEventListener('mousedown', (e) => {
+        function startSelection(clientX, clientY) {
             if (blurMode !== 'partial') return;
             if (mediaType === 'image' && !state.image.originalImage) return;
             if (mediaType === 'video' && !state.video.file) return;
 
             isDrawing = true;
             const rect = activeContainer.getBoundingClientRect();
-            startX = e.clientX - rect.left;
-            startY = e.clientY - rect.top;
+            startX = clientX - rect.left;
+            startY = clientY - rect.top;
 
             const boxEl = document.getElementById('selection-box');
             boxEl.style.left = startX + 'px';
@@ -267,13 +273,13 @@
             boxEl.style.width = '0px';
             boxEl.style.height = '0px';
             boxEl.classList.remove('hidden');
-        });
+        }
 
-        activeContainer.addEventListener('mousemove', (e) => {
+        function moveSelection(clientX, clientY) {
             if (!isDrawing || blurMode !== 'partial') return;
             const rect = activeContainer.getBoundingClientRect();
-            const currentX = e.clientX - rect.left;
-            const currentY = e.clientY - rect.top;
+            const currentX = clientX - rect.left;
+            const currentY = clientY - rect.top;
 
             const left = Math.min(startX, currentX);
             const top = Math.min(startY, currentY);
@@ -285,24 +291,18 @@
             boxEl.style.top = top + 'px';
             boxEl.style.width = width + 'px';
             boxEl.style.height = height + 'px';
-        });
+        }
 
-        window.addEventListener('mouseup', (e) => {
+        function endSelection() {
             if (!isDrawing) return;
             isDrawing = false;
 
             if (blurMode === 'partial') {
-                const rect = activeContainer.getBoundingClientRect();
                 const boxEl = document.getElementById('selection-box');
-                
                 const boxRect = boxEl.getBoundingClientRect();
-                const containerRect = activeContainer.getBoundingClientRect();
-
-                // Görselin veya videonun DOM üzerindeki gerçek render boyutunu bulalım
                 const mediaElement = mediaType === 'image' ? canvas : videoEl;
                 const mediaRect = mediaElement.getBoundingClientRect();
 
-                // Eğer seçim kutusu medya alanının içindeyse gerçek koordinatları hesapla
                 const relLeft = boxRect.left - mediaRect.left;
                 const relTop = boxRect.top - mediaRect.top;
                 const relWidth = boxRect.width;
@@ -329,7 +329,21 @@
                     selectedBox = null;
                 }
             }
+        }
+
+        // Mouse Eventleri
+        activeContainer.addEventListener('mousedown', (e) => startSelection(e.clientX, e.clientY));
+        activeContainer.addEventListener('mousemove', (e) => moveSelection(e.clientX, e.clientY));
+        window.addEventListener('mouseup', endSelection);
+
+        // Dokunmatik (Mobile) Eventleri
+        activeContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) startSelection(e.touches[0].clientX, e.touches[0].clientY);
         });
+        activeContainer.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) moveSelection(e.touches[0].clientX, e.touches[0].clientY);
+        });
+        window.addEventListener('touchend', endSelection);
 
         function drawPreview() {
             if (mediaType === 'image' && !state.image.originalImage) return;
@@ -355,7 +369,7 @@
                         ctx.restore();
                         ctx.filter = 'none';
 
-                        ctx.strokeStyle = '#06b6d4';
+                        ctx.strokeStyle = '#3b82f6';
                         ctx.lineWidth = 4;
                         ctx.strokeRect(selectedBox.x, selectedBox.y, selectedBox.width, selectedBox.height);
                     }
