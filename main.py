@@ -5,7 +5,12 @@ import os
 import shutil
 import uuid
 import json
-from .processor import BlurProcessor
+
+# Render ve lokal yapı uyumu için mutlak import (Absolute Import)
+try:
+    from backend.processor import BlurProcessor
+except ImportError:
+    from processor import BlurProcessor
 
 app = FastAPI()
 
