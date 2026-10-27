@@ -118,58 +118,151 @@ class BlurProcessor:
             return None
 
     @staticmethod
-    def apply_video_blur(video_path: str, output_path: str, blur_strength: float,
-                         box_data: dict | None=None, preview_w: float=360.0,
-                         progress_cb: Progress | None=None, cancel_event=None):
+    def apply_video_blur(
+        video_path: str,
+        output_path: str,
+        blur_strength: float,
+        box_data: dict | None = None,
+        preview_w: float = 360.0,
+        progress_cb: Progress | None = None,
+        cancel_event=None,
+    ):
+        """Process video directly with FFmpeg, avoiding Python per-frame loops."""
+        import math
+
         BlurProcessor._check_cancel(cancel_event)
-        cap=cv2.VideoCapture(video_path)
-        if not cap.isOpened(): raise ValueError("Video açılamadı veya desteklenmeyen codec kullanılıyor.")
-        width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)); height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps=float(cap.get(cv2.CAP_PROP_FPS) or 0)
-        total=int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-        if width<1 or height<1: cap.release(); raise ValueError("Video boyutları okunamadı.")
-        if not np.isfinite(fps) or fps<=0 or fps>240: fps=30.0
-        sigma=BlurProcessor._compute_sigma(float(blur_strength),width,preview_w)
-        silent_path=output_path+".temp_silent.mp4"
-        writer=cv2.VideoWriter(silent_path,cv2.VideoWriter_fourcc(*"mp4v"),fps,(width,height))
-        if not writer.isOpened():
-            cap.release(); writer.release(); Path(silent_path).unlink(missing_ok=True)
-            raise RuntimeError("Video yazıcısı başlatılamadı. OpenCV FFmpeg desteğini kontrol edin.")
-        frame_idx=0
-        try:
-            while True:
-                BlurProcessor._check_cancel(cancel_event)
-                ok,frame=cap.read()
-                if not ok: break
-                if sigma>0.05: frame=BlurProcessor._apply_region(frame,sigma,box_data)
-                writer.write(frame); frame_idx+=1
-                if progress_cb and total>0 and frame_idx%3==0:
-                    progress_cb(min(78,int(8+70*frame_idx/total)))
-        finally:
-            cap.release(); writer.release()
-        BlurProcessor._check_cancel(cancel_event)
-        if frame_idx==0 or not os.path.isfile(silent_path) or os.path.getsize(silent_path)==0:
-            raise RuntimeError("Videodan işlenebilir kare alınamadı.")
-        if progress_cb: progress_cb(82)
-        ffmpeg=BlurProcessor._find_ffmpeg()
+        ffmpeg = BlurProcessor._find_ffmpeg()
         if not ffmpeg:
-            # A silent file is not silently presented as a full-success export.
-            raise RuntimeError("FFmpeg bulunamadı. Video sesi korunarak dışa aktarmak için requirements.txt paketlerini kurun.")
-        # Map the processed video and optional original audio. Preserve audio when present.
-        cmd=[ffmpeg,"-y","-i",silent_path,"-i",video_path,
-             "-map","0:v:0","-map","1:a?","-c:v","libx264","-preset","veryfast","-crf","20",
-             "-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-af","aresample=async=1:first_pts=0",
-             "-shortest","-movflags","+faststart",output_path]
+            raise RuntimeError(
+                "FFmpeg bulunamadı. requirements.txt içindeki imageio-ffmpeg "
+                "paketinin kurulduğunu kontrol edin."
+            )
+
+        # Read metadata only; FFmpeg does the actual video filtering/encoding.
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError("Video açılamadı veya desteklenmeyen codec kullanılıyor.")
+        try:
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        finally:
+            cap.release()
+
+        if width < 2 or height < 2:
+            raise ValueError("Video boyutları okunamadı.")
+        if not math.isfinite(fps) or fps <= 0 or fps > 240:
+            fps = 30.0
+
+        sigma = BlurProcessor._compute_sigma(float(blur_strength), width, preview_w)
+        # FFmpeg boxblur is efficient on CPU. Cap radius to avoid extreme costs.
+        radius = max(1, min(100, int(round(sigma))))
+
+        if box_data:
+            rx = max(0.0, min(1.0, float(box_data["rx"])))
+            ry = max(0.0, min(1.0, float(box_data["ry"])))
+            rw = max(0.0, min(1.0 - rx, float(box_data["rw"])))
+            rh = max(0.0, min(1.0 - ry, float(box_data["rh"])))
+
+            # Align crop coordinates/sizes to even pixels for yuv420p output.
+            x = min(width - 2, int(rx * width) // 2 * 2)
+            y = min(height - 2, int(ry * height) // 2 * 2)
+            cw = min(width - x, max(2, int(rw * width) // 2 * 2))
+            ch = min(height - y, max(2, int(rh * height) // 2 * 2))
+            cw -= cw % 2
+            ch -= ch % 2
+            if cw < 2 or ch < 2:
+                raise ValueError("Seçilen bulanıklaştırma alanı çok küçük.")
+
+            filter_graph = (
+                f"[0:v:0]split=2[base][src];"
+                f"[src]crop={cw}:{ch}:{x}:{y},boxblur={radius}:2[blur];"
+                f"[base][blur]overlay={x}:{y}:shortest=1,"
+                f"scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[v]"
+            )
+        else:
+            filter_graph = (
+                f"[0:v:0]boxblur={radius}:2,"
+                f"scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[v]"
+            )
+
+        # -progress reports machine-readable progress on stdout.
+        cmd = [
+            ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+            "-stats_period", "0.5", "-progress", "pipe:1", "-i", video_path,
+            "-filter_complex", filter_graph,
+            "-map", "[v]", "-map", "0:a?",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+            "-threads", "0", "-c:a", "aac", "-b:a", "160k",
+            "-movflags", "+faststart", output_path,
+        ]
+
+        process = None
         try:
             BlurProcessor._check_cancel(cancel_event)
-            result=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=1800,check=False)
-            if result.returncode != 0:
-                detail=(result.stderr or "Bilinmeyen FFmpeg hatası")[-1200:]
-                raise RuntimeError("Video/ses birleştirme başarısız: "+detail)
-            if not os.path.isfile(output_path) or os.path.getsize(output_path)==0:
-                raise RuntimeError("FFmpeg çıktı dosyası oluşturamadı.")
+            process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, bufsize=1,
+            )
+            last_progress = 8
+            if progress_cb:
+                progress_cb(last_progress)
+
+            assert process.stdout is not None
+            for line in process.stdout:
+                BlurProcessor._check_cancel(cancel_event)
+                line = line.strip()
+                if line.startswith("frame=") and total_frames > 0:
+                    try:
+                        frame = int(line.split("=", 1)[1])
+                        percent = max(8, min(95, int(8 + 87 * frame / total_frames)))
+                        if percent > last_progress:
+                            last_progress = percent
+                            if progress_cb:
+                                progress_cb(percent)
+                    except ValueError:
+                        pass
+
+            # FFmpeg normally writes only errors to stderr due to -loglevel error.
+            return_code = process.wait(timeout=1800)
+            stderr_text = process.stderr.read() if process.stderr else ""
+            if return_code != 0:
+                raise RuntimeError(
+                    "FFmpeg video işleme hatası: "
+                    + (stderr_text[-1200:] or "Bilinmeyen hata")
+                )
+            if not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
+                raise RuntimeError("FFmpeg geçerli çıktı oluşturamadı.")
+            if progress_cb:
+                progress_cb(100)
+            return output_path
+
+        except InterruptedError:
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            Path(output_path).unlink(missing_ok=True)
+            raise
+        except Exception:
+            if process and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            Path(output_path).unlink(missing_ok=True)
+            raise
         finally:
-            Path(silent_path).unlink(missing_ok=True)
-        BlurProcessor._check_cancel(cancel_event)
-        if progress_cb: progress_cb(100)
-        return output_path
+            if process:
+                if process.stdout:
+                    process.stdout.close()
+                if process.stderr:
+                    process.stderr.close()
+            if cancel_event is not None and cancel_event.is_set():
+                Path(output_path).unlink(missing_ok=True)
