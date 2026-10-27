@@ -50,7 +50,6 @@ class BlurProcessor:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         
-        # Geçici sessiz işlenmiş video
         temp_silent_output = output_path + "_temp.mp4"
         
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -67,19 +66,21 @@ class BlurProcessor:
 
             if blur_strength > 0:
                 if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
-                    x = int(box_data['rx'] * width)
-                    y = int(box_data['ry'] * height)
-                    bw = int(box_data['rw'] * width)
-                    bh = int(box_data['rh'] * height)
+                    # Yüzdesel oranları gerçek video piksel çözünürlüğüne çarpıyoruz
+                    x = int(float(box_data['rx']) * width)
+                    y = int(float(box_data['ry']) * height)
+                    bw = int(float(box_data['rw']) * width)
+                    bh = int(float(box_data['rh']) * height)
 
-                    x = max(0, min(x, width))
-                    y = max(0, min(y, height))
-                    bw = max(1, min(bw, width - x))
-                    bh = max(1, min(bh, height - y))
+                    x = max(0, min(x, width - 1))
+                    y = max(0, min(y, height - 1))
+                    bw = max(2, min(bw, width - x))
+                    bh = max(2, min(bh, height - y))
 
                     roi = frame[y:y+bh, x:x+bw]
-                    blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
-                    frame[y:y+bh, x:x+bw] = blurred_roi
+                    if roi.size > 0:
+                        blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
+                        frame[y:y+bh, x:x+bw] = blurred_roi
                 else:
                     frame = cv2.GaussianBlur(frame, (ksize, ksize), 0)
 
@@ -88,37 +89,25 @@ class BlurProcessor:
         cap.release()
         out.release()
 
-        # SESİ KORUMA VE BİRLEŞTİRME AŞAMASI (FFmpeg ile Orijinal Sesi Ekliyoruz)
+        # FFmpeg ile orijinal ses kanalını videoya geri ekleme
         try:
-            # Orijinal videoda ses kanalı var mı kontrol edelim
             probe_cmd = ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
             has_audio = subprocess.run(probe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
 
             if has_audio:
-                # Orijinal ses ile işlenmiş videoyu kusursuzca harmanla
                 ffmpeg_cmd = [
-                    "ffmpeg", "-y",
-                    "-i", temp_silent_output,
-                    "-i", video_path,
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-map", "0:v:0",
-                    "-map", "1:a:0?",
-                    "-shortest",
-                    output_path
+                    "ffmpeg", "-y", "-i", temp_silent_output, "-i", video_path,
+                    "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0?", "-shortest", output_path
                 ]
             else:
-                # Ses yoksa direkt kopyala
                 ffmpeg_cmd = ["ffmpeg", "-y", "-i", temp_silent_output, "-c", "copy", output_path]
 
             subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
-            print(f"FFmpeg ses birleştirme uyarısı: {e}")
-            # FFmpeg hata verirse en azından sessiz videoyu çıktı olarak bırak
+            print(f"FFmpeg ses birleştirme hatası: {e}")
             if os.path.exists(temp_silent_output):
                 os.replace(temp_silent_output, output_path)
         finally:
-            # Geçici dosyayı temizle
             if os.path.exists(temp_silent_output):
                 os.remove(temp_silent_output)
 
