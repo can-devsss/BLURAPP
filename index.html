@@ -16,7 +16,7 @@
             -webkit-appearance: none;
             height: 6px;
             border-radius: 9999px;
-            background: rgba(150, 150, 150, 0.2);
+            background: rgba(150, 150, 150, 0.25);
             outline: none;
         }
         input[type="range"]::-webkit-slider-thumb {
@@ -27,7 +27,7 @@
             border-radius: 50%;
             background: #ffffff;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08);
             transition: transform 0.15s ease;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
@@ -46,7 +46,10 @@
     <div class="w-full max-w-xl bg-white/85 dark:bg-[#1c1c1e]/90 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_50px_rgba(0,0,0,0.6)] rounded-[36px] p-5 sm:p-8 flex flex-col gap-5 relative">
         
         <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-3">
-            <div class="text-[11px] font-extrabold tracking-[0.3em] text-slate-400 dark:text-slate-500 uppercase">CAN STUDIO</div>
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <div class="text-[11px] font-extrabold tracking-[0.3em] text-slate-400 dark:text-slate-500 uppercase">CAN STUDIO</div>
+            </div>
             <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 transition-all text-slate-700 dark:text-slate-200 shadow-2xs" title="Tema Değiştir">
                 <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
             </button>
@@ -54,7 +57,7 @@
 
         <div>
             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Kademeli Blur</h1>
-            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Fotoğraf veya videolarınıza tam ekran ya da seçmeli bölgesel blur uygulayın.</p>
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Fotoğraf veya videolarınıza milimetrik tam ekran ya da bölgesel blur uygulayın.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
@@ -68,44 +71,62 @@
         </div>
 
         <!-- ÖNİZLEME ALANI -->
-        <div id="preview-container" class="hidden relative w-full h-60 sm:h-72 bg-black rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner select-none touch-none">
+        <div id="preview-container" class="hidden relative w-full h-64 sm:h-72 bg-black rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner select-none touch-none">
             <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
-            <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" playsinline preload="metadata"></video>
+            <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" playsinline webkit-playsinline muted preload="auto"></video>
             
-            <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/10 hidden pointer-events-none z-20 rounded-lg overflow-hidden"></div>
+            <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/5 hidden pointer-events-none z-20 rounded-lg overflow-hidden"></div>
         </div>
 
         <!-- VİDEO İÇİN ALT KONTROL BARI -->
         <div id="video-controls-bar" class="hidden flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
-            <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-all">▶</button>
+            <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-9 h-9 shrink-0 flex items-center justify-center bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-all">▶</button>
             <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)" class="w-full cursor-pointer">
+            <button onclick="toggleVideoMute()" id="mute-btn" class="w-9 h-9 shrink-0 flex items-center justify-center bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all" title="Sesi Aç/Kapat">🔇</button>
         </div>
 
-        <div id="selection-info" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 text-center hidden">
-            ✨ Bölgesel Mod Aktif: Medya üzerinde blurlanmasını istediğiniz alanı sürükleyerek seçin.
+        <div id="selection-info" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center justify-between px-1 hidden">
+            <span>✨ Medya üzerinde blurlanacak alanı sürükleyerek seçin.</span>
+            <button onclick="clearSelection()" id="clear-sel-btn" class="hidden text-[11px] font-bold text-rose-500 hover:underline ml-2 shrink-0">Seçimi Sıfırla</button>
         </div>
 
-        <div class="flex flex-col gap-2 bg-slate-100/90 dark:bg-white/5 p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
+        <!-- MİLİMETRİK (0.1 PX) BLUR BARI -->
+        <div class="flex flex-col gap-2.5 bg-slate-100/90 dark:bg-white/5 p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <div class="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
-                <span>Blur Yoğunluğu (Kademe)</span>
-                <span id="intensity-val" class="px-2.5 py-1 bg-white dark:bg-white/10 rounded-xl text-slate-900 dark:text-white font-extrabold shadow-2xs">0 px</span>
+                <span>Blur Yoğunluğu (Milimetrik Kademe)</span>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="nudgeBlur(-0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all" title="-0.5 px">-</button>
+                    <span id="intensity-val" class="px-2.5 py-1 bg-white dark:bg-white/10 rounded-xl text-slate-900 dark:text-white font-extrabold shadow-2xs min-w-[60px] text-center">0.0 px</span>
+                    <button onclick="nudgeBlur(0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all" title="+0.5 px">+</button>
+                </div>
             </div>
-            <input type="range" id="intensity" min="0" max="50" value="0" 
+            <input type="range" id="intensity" min="0" max="50" step="0.1" value="0" 
                    oninput="updateBlur(this.value)" 
                    class="w-full cursor-pointer mt-1">
         </div>
 
         <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-blue-500 dark:hover:border-blue-400 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-white/5 group">
             <svg class="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center" id="file-label">Medya seçmek için dokunun veya sürükleyin</span>
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center break-all px-2" id="file-label">Medya seçmek için dokunun veya sürükleyin</span>
             <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="handleFileSelect(this)">
         </label>
 
-        <div id="status-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
+        <!-- CANLI İLERLEME ÇUBUĞU VE DURUM ALANI -->
+        <div class="flex flex-col gap-2">
+            <div id="status-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
+            <div id="progress-wrapper" class="hidden w-full bg-slate-200 dark:bg-white/10 h-2.5 rounded-full overflow-hidden">
+                <div id="progress-bar" class="bg-blue-600 h-full transition-all duration-300 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
 
         <button onclick="processMedia()" id="action-btn" disabled class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
             Önizlemedeki Kademeyle Cihaza İndir
         </button>
+
+        <!-- MOBİL TARAYICILAR İÇİN GARANTİLİ DOĞRUDAN İNDİRME BUTONU -->
+        <a id="direct-download-btn" href="#" download class="hidden w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold text-center shadow-lg shadow-emerald-500/25 transition-all">
+            📥 İşlem Tamamlandı! Dosyayı Cihaza Kaydet
+        </a>
 
     </div>
 
@@ -124,9 +145,11 @@
         const videoEl = document.getElementById('preview-video');
         const videoControlsBar = document.getElementById('video-controls-bar');
         const playPauseBtn = document.getElementById('play-pause-btn');
+        const muteBtn = document.getElementById('mute-btn');
         const videoProgress = document.getElementById('video-progress');
         const activeContainer = document.getElementById('preview-container');
         const boxEl = document.getElementById('selection-box');
+        const directDownloadBtn = document.getElementById('direct-download-btn');
         
         let isDrawing = false;
         let startX = 0, startY = 0;
@@ -145,6 +168,18 @@
             }
         }
 
+        function toggleVideoMute() {
+            videoEl.muted = !videoEl.muted;
+            muteBtn.innerText = videoEl.muted ? "🔇" : "🔊";
+        }
+
+        videoEl.addEventListener('loadeddata', () => {
+            // Mobilde siyah ekranı önlemek için ilk kareyi göster
+            if (videoEl.currentTime === 0) {
+                videoEl.currentTime = 0.01;
+            }
+        });
+
         videoEl.addEventListener('timeupdate', () => {
             if (videoEl.duration) {
                 videoProgress.value = (videoEl.currentTime / videoEl.duration) * 100;
@@ -161,7 +196,6 @@
             }
         }
 
-        // Medyanın ekranda kapladığı gerçek piksel sınırlarını (object-contain boşluklarını çıkararak) hesaplar
         function getRenderedMediaRect() {
             const containerRect = activeContainer.getBoundingClientRect();
             let natW = 0, natH = 0;
@@ -197,18 +231,24 @@
                 left: containerRect.left + offsetX,
                 top: containerRect.top + offsetY,
                 width: renderW,
-                height: renderH,
-                offsetX: offsetX,
-                offsetY: offsetY
+                height: renderH
             };
+        }
+
+        function clearSelection() {
+            selectedRatioBox = null;
+            boxEl.classList.add('hidden');
+            document.getElementById('clear-sel-btn').classList.add('hidden');
+            if (mediaType === 'image') drawPreview();
+            else applyLiveVideoBlur();
         }
 
         function switchMediaType(type) {
             if (mediaType === type) return;
             mediaType = type;
             const fileInput = document.getElementById('file-input');
-            selectedRatioBox = null;
-            boxEl.classList.add('hidden');
+            clearSelection();
+            directDownloadBtn.classList.add('hidden');
             
             document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
             document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
@@ -255,19 +295,15 @@
                 fullBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
                 partBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.add('hidden');
-                selectedRatioBox = null;
-                boxEl.classList.add('hidden');
+                clearSelection();
             } else {
                 partBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
                 fullBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.remove('hidden');
             }
 
-            if (mediaType === 'image') {
-                drawPreview();
-            } else {
-                applyLiveVideoBlur();
-            }
+            if (mediaType === 'image') drawPreview();
+            else applyLiveVideoBlur();
         }
 
         function resetWorkspaceUI() {
@@ -277,16 +313,14 @@
             videoControlsBar.classList.add('hidden');
             document.getElementById('action-btn').disabled = true;
             document.getElementById('intensity').value = 0;
-            document.getElementById('intensity-val').innerText = "0 px";
+            document.getElementById('intensity-val').innerText = "0.0 px";
             document.getElementById('status-text').innerText = "Sistem Hazır.";
-            selectedRatioBox = null;
-            boxEl.classList.add('hidden');
+            clearSelection();
             videoEl.style.filter = 'none';
         }
 
-        // Video üzerinde canlı kademeli blur önizlemesi
         function applyLiveVideoBlur() {
-            const blurVal = parseInt(document.getElementById('intensity').value) || 0;
+            const blurVal = parseFloat(document.getElementById('intensity').value) || 0;
             if (mediaType !== 'video') {
                 videoEl.style.filter = 'none';
                 boxEl.style.backdropFilter = 'none';
@@ -310,8 +344,16 @@
             }
         }
 
+        function nudgeBlur(delta) {
+            const slider = document.getElementById('intensity');
+            let nextVal = Math.max(0, Math.min(50, (parseFloat(slider.value) || 0) + delta));
+            slider.value = nextVal.toFixed(1);
+            updateBlur(slider.value);
+        }
+
         function updateBlur(val) {
-            document.getElementById('intensity-val').innerText = val + ' px';
+            const numVal = parseFloat(val) || 0;
+            document.getElementById('intensity-val').innerText = numVal.toFixed(1) + ' px';
             if (mediaType === 'image' && state.image.originalImage) {
                 requestAnimationFrame(drawPreview);
             } else if (mediaType === 'video' && state.video.file) {
@@ -325,8 +367,8 @@
                 document.getElementById('file-label').innerText = "Seçilen: " + file.name;
                 document.getElementById('action-btn').disabled = false;
                 activeContainer.classList.remove('hidden');
-                selectedRatioBox = null;
-                boxEl.classList.add('hidden');
+                directDownloadBtn.classList.add('hidden');
+                clearSelection();
 
                 if (file.type.startsWith('video/')) {
                     if (mediaType !== 'video') switchMediaType('video');
@@ -338,9 +380,10 @@
                     canvas.classList.add('hidden');
                     videoControlsBar.classList.remove('hidden');
                     videoEl.src = state.video.url;
+                    videoEl.load();
                     playPauseBtn.innerText = "▶";
                     applyLiveVideoBlur();
-                    document.getElementById('status-text').innerText = "Video hazır. Blur kademesini ayarlayabilir veya alan seçebilirsiniz.";
+                    document.getElementById('status-text').innerText = "Video hazır. Milimetrik blur ayarlayabilir veya bölge seçebilirsiniz.";
                 } else {
                     if (mediaType !== 'image') switchMediaType('image');
                     state.image.file = file;
@@ -356,7 +399,7 @@
                             canvas.width = state.image.originalImage.width;
                             canvas.height = state.image.originalImage.height;
                             drawPreview();
-                            document.getElementById('status-text').innerText = "Fotoğraf hazır. Blur kademesini ayarlayabilir veya alan seçebilirsiniz.";
+                            document.getElementById('status-text').innerText = "Fotoğraf hazır. Milimetrik blur ayarlayabilir veya bölge seçebilirsiniz.";
                         }
                         state.image.originalImage.src = e.target.result;
                     }
@@ -365,7 +408,6 @@
             }
         }
 
-        // Sürükle-bırak (Drag & Drop) desteği
         const dropZone = document.getElementById('drop-zone');
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500'); });
         dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-blue-500'); });
@@ -387,7 +429,6 @@
             const mediaRect = getRenderedMediaRect();
             const containerRect = activeContainer.getBoundingClientRect();
 
-            // Tıklamayı medyanın gerçek sınırları içine sabitle
             const clampedX = Math.max(mediaRect.left, Math.min(clientX, mediaRect.left + mediaRect.width));
             const clampedY = Math.max(mediaRect.top, Math.min(clientY, mediaRect.top + mediaRect.height));
 
@@ -447,17 +488,12 @@
                         rh: Math.max(0, Math.min(1, relHeight / mediaRect.height))
                     };
 
-                    document.getElementById('status-text').innerText = "Bölge başarıyla seçildi! Yoğunluğu ayarlayıp indirebilirsiniz.";
-                    if (mediaType === 'image') {
-                        drawPreview();
-                    } else {
-                        applyLiveVideoBlur();
-                    }
-                } else {
-                    boxEl.classList.add('hidden');
-                    selectedRatioBox = null;
+                    document.getElementById('clear-sel-btn').classList.remove('hidden');
+                    document.getElementById('status-text').innerText = "Bölge seçildi! Yoğunluğu ayarlayıp indirebilirsiniz.";
                     if (mediaType === 'image') drawPreview();
                     else applyLiveVideoBlur();
+                } else {
+                    clearSelection();
                 }
             }
         }
@@ -481,7 +517,10 @@
 
         function drawPreview() {
             if (mediaType !== 'image' || !state.image.originalImage) return;
-            const blurVal = parseInt(document.getElementById('intensity').value) || 0;
+            const blurVal = parseFloat(document.getElementById('intensity').value) || 0;
+            const mediaRect = getRenderedMediaRect();
+            const scaleFactor = state.image.originalImage.width / Math.max(100, mediaRect.width);
+            const canvasBlurPx = blurVal * scaleFactor;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(state.image.originalImage, 0, 0);
@@ -489,7 +528,7 @@
             if (blurVal > 0) {
                 if (blurMode === 'full') {
                     ctx.save();
-                    ctx.filter = `blur(${blurVal}px)`;
+                    ctx.filter = `blur(${canvasBlurPx}px)`;
                     ctx.drawImage(state.image.originalImage, 0, 0);
                     ctx.restore();
                 } else if (blurMode === 'partial' && selectedRatioBox) {
@@ -502,7 +541,7 @@
                     ctx.beginPath();
                     ctx.rect(px, py, pw, ph);
                     ctx.clip();
-                    ctx.filter = `blur(${blurVal}px)`;
+                    ctx.filter = `blur(${canvasBlurPx}px)`;
                     ctx.drawImage(state.image.originalImage, 0, 0);
                     ctx.restore();
                 }
@@ -511,50 +550,79 @@
 
         async function processMedia() {
             const currentFile = mediaType === 'image' ? state.image.file : state.video.file;
-            const blurIntensity = document.getElementById('intensity').value;
+            const blurIntensity = parseFloat(document.getElementById('intensity').value) || 0;
             
             if (!currentFile) return;
 
             if (blurMode === 'partial' && !selectedRatioBox) {
-                document.getElementById('status-text').innerText = "Lütfen önce medya üzerinde blurlanacak bölgeyi seçin!";
+                document.getElementById('status-text').innerText = "⚠️ Lütfen önce medya üzerinde blurlanacak bölgeyi parmağınızla/fareyle seçin!";
                 return;
             }
 
             const btn = document.getElementById('action-btn');
             const status = document.getElementById('status-text');
-            btn.disabled = true;
-            status.innerText = "Sunucuda kademeli işleniyor, lütfen bekleyin...";
+            const progWrap = document.getElementById('progress-wrapper');
+            const progBar = document.getElementById('progress-bar');
 
+            btn.disabled = true;
+            directDownloadBtn.classList.add('hidden');
+            progWrap.classList.remove('hidden');
+            progBar.style.width = '5%';
+            status.innerText = "Dosya sunucuya yükleniyor...";
+
+            const mediaRect = getRenderedMediaRect();
             const formData = new FormData();
             formData.append("file", currentFile);
             formData.append("intensity", blurIntensity);
             formData.append("media_type", mediaType);
+            formData.append("preview_w", mediaRect.width || 360);
             
             if (blurMode === 'partial' && selectedRatioBox) {
                 formData.append("box", JSON.stringify(selectedRatioBox));
             }
 
             try {
-                const response = await fetch('/api/process-media', {
+                const startRes = await fetch('/api/process-media', {
                     method: 'POST',
                     body: formData
                 });
                 
-                const result = await response.json();
-                if (!response.ok || !result.success) {
-                    throw new Error(result.detail || "İşlem hatası");
+                const startData = await startRes.json();
+                if (!startRes.ok || !startData.success) {
+                    throw new Error(startData.detail || "İşlem başlatılamadı");
                 }
 
-                status.innerText = "İşlem tamamlandı, cihaza indiriliyor!";
-                const a = document.createElement('a');
-                a.href = result.download_url;
-                a.download = "blured_" + currentFile.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                const jobId = startData.job_id;
+
+                // Sunucuyu kilitlemeden her 800ms'de bir ilerleme durumunu takip et
+                while (true) {
+                    await new Promise(r => setTimeout(r, 800));
+                    const statusRes = await fetch(`/api/job-status/${jobId}`);
+                    if (!statusRes.ok) throw new Error("İşlem durumu alınamadı");
+                    
+                    const job = await statusRes.json();
+                    progBar.style.width = `${job.progress || 10}%`;
+                    status.innerText = `Sunucuda milimetrik işleniyor... %${job.progress || 10}`;
+
+                    if (job.status === 'completed') {
+                        progBar.style.width = '100%';
+                        status.innerText = "✅ İşlem tamamlandı! Cihazınıza indiriliyor...";
+
+                        directDownloadBtn.href = job.download_url;
+                        directDownloadBtn.setAttribute('download', 'blured_' + currentFile.name);
+                        directDownloadBtn.classList.remove('hidden');
+
+                        // Otomatik indirmeyi tetikle
+                        window.location.assign(job.download_url);
+                        break;
+                    } else if (job.status === 'failed') {
+                        throw new Error(job.error || "Medya işlenirken sunucu hatası oluştu.");
+                    }
+                }
             } catch (err) {
                 console.error(err);
-                status.innerText = "Hata: " + (err.message || "Sunucu bağlantı hatası!");
+                status.innerText = "❌ Hata: " + (err.message || "Sunucu bağlantı hatası!");
+                progWrap.classList.add('hidden');
             } finally {
                 btn.disabled = false;
             }
