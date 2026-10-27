@@ -23,10 +23,6 @@ class BlurProcessor:
 
     @staticmethod
     def _compute_exact_sigma(blur_px: float, media_width: int, media_height: int, preview_w: float = 360.0) -> float:
-        """
-        Önizlemedeki CSS blur(Xpx) değerini medyanın gerçek çözünürlüğüne
-        milimetrik (0.1px hassasiyetle) oranlayarak tam Gaussian Sigma değerini döndürür.
-        """
         if blur_px <= 0:
             return 0.0
         ref_w = max(100.0, float(preview_w or 360.0))
@@ -36,15 +32,9 @@ class BlurProcessor:
 
     @staticmethod
     def _apply_exact_gaussian(img: np.ndarray, sigma: float) -> np.ndarray:
-        """
-        Çok yüksek çözünürlüklerde hem milimetrik hassasiyeti korur hem de
-        CPU'yu kilitlemeden 10 kat hızlı (downscale-blur-upscale) çalışır.
-        """
         if sigma <= 0.05:
             return img
-
         h, w = img.shape[:2]
-        # Eğer sigma çok büyükse görüntüyü orantılı küçültüp blurlayıp geri büyüt (Aynı görsel sonuç, 10x hız)
         if sigma > 12.0 and min(h, w) > 64:
             scale = max(0.15, min(1.0, 8.0 / sigma))
             small_w = max(2, int(w * scale))
@@ -65,9 +55,7 @@ class BlurProcessor:
         preview_w: float = 360.0,
         progress_cb: Optional[Callable[[int], None]] = None
     ):
-        if progress_cb:
-            progress_cb(15)
-
+        if progress_cb: progress_cb(15)
         img = BlurProcessor._read_image_safe(image_path)
         if img is None:
             raise ValueError("Görsel okunamadı veya bozuk!")
@@ -77,14 +65,11 @@ class BlurProcessor:
 
         if blur_val <= 0:
             BlurProcessor._write_image_safe(output_path, img)
-            if progress_cb:
-                progress_cb(100)
+            if progress_cb: progress_cb(100)
             return output_path
 
         sigma = BlurProcessor._compute_exact_sigma(blur_val, w, h, preview_w)
-
-        if progress_cb:
-            progress_cb(50)
+        if progress_cb: progress_cb(50)
 
         if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
             x = max(0, min(int(round(float(box_data['rx']) * w)), w - 1))
@@ -98,12 +83,9 @@ class BlurProcessor:
         else:
             img = BlurProcessor._apply_exact_gaussian(img, sigma)
 
-        if progress_cb:
-            progress_cb(85)
-
+        if progress_cb: progress_cb(85)
         BlurProcessor._write_image_safe(output_path, img)
-        if progress_cb:
-            progress_cb(100)
+        if progress_cb: progress_cb(100)
         return output_path
 
     @staticmethod
@@ -115,6 +97,7 @@ class BlurProcessor:
         preview_w: float = 360.0,
         progress_cb: Optional[Callable[[int], None]] = None
     ):
+        if progress_cb: progress_cb(10)
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise ValueError("Video dosyası açılamadı!")
@@ -130,12 +113,19 @@ class BlurProcessor:
         sigma = BlurProcessor._compute_exact_sigma(blur_val, width, height, preview_w)
 
         temp_silent_output = output_path + "_temp_silent.mp4"
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        
+        # Linux/Render sunucularında en garanti codec XVID veya mp4v dir.
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
 
         if not out.isOpened():
+            # Alternatif codec dene
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
+            
+        if not out.isOpened():
             cap.release()
-            raise RuntimeError("Video yazıcı (VideoWriter) başlatılamadı!")
+            raise RuntimeError("Video yazıcı (VideoWriter) sunucuda başlatılamadı!")
 
         has_box = bool(box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']))
         if has_box:
@@ -161,17 +151,15 @@ class BlurProcessor:
             out.write(frame)
             frame_idx += 1
 
-            if progress_cb and total_frames > 0 and frame_idx % 5 == 0:
-                pct = min(85, int((frame_idx / total_frames) * 85))
-                progress_cb(max(5, pct))
+            if progress_cb and total_frames > 0 and frame_idx % 10 == 0:
+                pct = min(80, int(10 + (frame_idx / total_frames) * 70))
+                progress_cb(pct)
 
         cap.release()
         out.release()
+        if progress_cb: progress_cb(85)
 
-        if progress_cb:
-            progress_cb(88)
-
-        # FFmpeg ile H.264 + Ses Birleştirme (Mobil ve PC tüm cihazlarda %100 uyumlu)
+        # FFmpeg ile kusursuz H.264 dönüştürme ve ses ekleme
         ffmpeg_exe = shutil.which("ffmpeg")
         if not ffmpeg_exe:
             try:
@@ -186,7 +174,7 @@ class BlurProcessor:
                     ffmpeg_exe, "-y",
                     "-i", temp_silent_output,
                     "-i", video_path,
-                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "22",
+                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
                     "-pix_fmt", "yuv420p",
                     "-movflags", "+faststart",
                     "-c:a", "aac", "-b:a", "128k",
@@ -195,20 +183,16 @@ class BlurProcessor:
                 ]
                 subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=300)
             except Exception as e:
-                print(f"FFmpeg ses/codec birleştirme uyarısı: {e}")
+                print(f"FFmpeg dönüştürme hatası: {e}")
                 if os.path.exists(temp_silent_output):
                     os.replace(temp_silent_output, output_path)
             finally:
                 if os.path.exists(temp_silent_output):
-                    try:
-                        os.remove(temp_silent_output)
-                    except Exception:
-                        pass
+                    try: os.remove(temp_silent_output)
+                    except: pass
         else:
             if os.path.exists(temp_silent_output):
                 os.replace(temp_silent_output, output_path)
 
-        if progress_cb:
-            progress_cb(100)
-
+        if progress_cb: progress_cb(100)
         return output_path
