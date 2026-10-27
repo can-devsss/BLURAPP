@@ -2,32 +2,55 @@ import cv2
 import numpy as np
 import subprocess
 import os
+import shutil
 
 class BlurProcessor:
     @staticmethod
+    def _read_image_safe(image_path: str):
+        """Windows Türkçe karakterli dosya yollarında cv2.imread çökmesini önler."""
+        with open(image_path, "rb") as f:
+            file_bytes = np.asarray(bytearray(f.read()), dtype=np.uint8)
+        return cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+    @staticmethod
+    def _write_image_safe(output_path: str, img):
+        """Windows Türkçe karakterli dosya yollarında cv2.imwrite çökmesini önler."""
+        ext = os.path.splitext(output_path)[1] or ".jpg"
+        success, encoded_img = cv2.imencode(ext, img)
+        if success:
+            with open(output_path, "wb") as f:
+                encoded_img.tofile(f)
+
+    @staticmethod
+    def _calculate_kernel(blur_strength: float, width: int, height: int) -> int:
+        """Görsel/Video çözünürlüğüne göre gerçekçi ve güçlü bir tek sayı kernel hesaplar."""
+        scale = max(1.0, min(width, height) / 500.0)
+        ksize = int(float(blur_strength) * 2.5 * scale)
+        if ksize % 2 == 0:
+            ksize += 1
+        return max(3, ksize)
+
+    @staticmethod
     def apply_progressive_blur(image_path: str, output_path: str, blur_strength: int, box_data: dict = None):
-        img = cv2.imread(image_path)
+        img = BlurProcessor._read_image_safe(image_path)
         if img is None:
             raise ValueError("Görsel okunamadı!")
 
-        if blur_strength <= 0:
-            cv2.imwrite(output_path, img)
+        if float(blur_strength) <= 0:
+            BlurProcessor._write_image_safe(output_path, img)
             return output_path
 
-        ksize = int(blur_strength) * 3 + 1
-        if ksize % 2 == 0:
-            ksize += 1
-
         h, w = img.shape[:2]
+        ksize = BlurProcessor._calculate_kernel(blur_strength, w, h)
 
         if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
-            x = int(box_data['rx'] * w)
-            y = int(box_data['ry'] * h)
-            bw = int(box_data['rw'] * w)
-            bh = int(box_data['rh'] * h)
+            x = int(float(box_data['rx']) * w)
+            y = int(float(box_data['ry']) * h)
+            bw = int(float(box_data['rw']) * w)
+            bh = int(float(box_data['rh']) * h)
 
-            x = max(0, min(x, w))
-            y = max(0, min(y, h))
+            x = max(0, min(x, w - 1))
+            y = max(0, min(y, h - 1))
             bw = max(1, min(bw, w - x))
             bh = max(1, min(bh, h - y))
 
@@ -38,7 +61,7 @@ class BlurProcessor:
         else:
             img = cv2.GaussianBlur(img, (ksize, ksize), 0)
 
-        cv2.imwrite(output_path, img)
+        BlurProcessor._write_image_safe(output_path, img)
         return output_path
 
     @staticmethod
@@ -49,34 +72,31 @@ class BlurProcessor:
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if not fps or fps <= 0 or np.isnan(fps):
+            fps = 30.0
         
         temp_silent_output = output_path + "_temp.mp4"
         
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(temp_silent_output, fourcc, fps, (width, height))
 
-        ksize = int(blur_strength) * 3 + 1
-        if ksize % 2 == 0:
-            ksize += 1
+        ksize = BlurProcessor._calculate_kernel(blur_strength, width, height)
+
+        has_box = box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh'])
+        if has_box:
+            x = max(0, min(int(float(box_data['rx']) * width), width - 1))
+            y = max(0, min(int(float(box_data['ry']) * height), height - 1))
+            bw = max(2, min(int(float(box_data['rw']) * width), width - x))
+            bh = max(2, min(int(float(box_data['rh']) * height), height - y))
 
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
 
-            if blur_strength > 0:
-                if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
-                    x = int(float(box_data['rx']) * width)
-                    y = int(float(box_data['ry']) * height)
-                    bw = int(float(box_data['rw']) * width)
-                    bh = int(float(box_data['rh']) * height)
-
-                    x = max(0, min(x, width - 1))
-                    y = max(0, min(y, height - 1))
-                    bw = max(2, min(bw, width - x))
-                    bh = max(2, min(bh, height - y))
-
+            if float(blur_strength) > 0:
+                if has_box:
                     roi = frame[y:y+bh, x:x+bw]
                     if roi.size > 0:
                         blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
@@ -89,25 +109,36 @@ class BlurProcessor:
         cap.release()
         out.release()
 
-        try:
-            probe_cmd = ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
-            has_audio = subprocess.run(probe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
+        # FFmpeg ile videoyu her cihazda/tarayıcıda açılan H.264 formatına çevir ve orijinal sesi ekle
+        ffmpeg_exe = shutil.which("ffmpeg")
+        if not ffmpeg_exe:
+            try:
+                import imageio_ffmpeg
+                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            except ImportError:
+                ffmpeg_exe = None
 
-            if has_audio:
+        if ffmpeg_exe and os.path.exists(temp_silent_output):
+            try:
                 ffmpeg_cmd = [
-                    "ffmpeg", "-y", "-i", temp_silent_output, "-i", video_path,
-                    "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0?", "-shortest", output_path
+                    ffmpeg_exe, "-y",
+                    "-i", temp_silent_output,
+                    "-i", video_path,
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p",
+                    "-c:a", "aac",
+                    "-map", "0:v:0", "-map", "1:a:0?",
+                    "-shortest", output_path
                 ]
-            else:
-                ffmpeg_cmd = ["ffmpeg", "-y", "-i", temp_silent_output, "-c", "copy", output_path]
-
-            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except Exception as e:
-            print(f"FFmpeg ses birleştirme hatası: {e}")
+                subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            except Exception as e:
+                print(f"FFmpeg dönüştürme uyarısı: {e}")
+                if os.path.exists(temp_silent_output):
+                    os.replace(temp_silent_output, output_path)
+            finally:
+                if os.path.exists(temp_silent_output):
+                    os.remove(temp_silent_output)
+        else:
             if os.path.exists(temp_silent_output):
                 os.replace(temp_silent_output, output_path)
-        finally:
-            if os.path.exists(temp_silent_output):
-                os.remove(temp_silent_output)
 
         return output_path
