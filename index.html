@@ -43,10 +43,8 @@
 </head>
 <body id="app-body" class="bg-[#f2f2f7] dark:bg-[#000000] text-slate-900 dark:text-slate-100 min-h-full flex items-center justify-center p-3 sm:p-6 transition-colors duration-300 selection:bg-blue-500 selection:text-white">
 
-    <!-- Ana iOS Kart Konteynerı -->
     <div class="w-full max-w-xl bg-white/85 dark:bg-[#1c1c1e]/90 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_50px_rgba(0,0,0,0.6)] rounded-[36px] p-5 sm:p-8 flex flex-col gap-5 relative">
         
-        <!-- Üst Bar: Logo ve Tema Butonu -->
         <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-3">
             <div class="text-[11px] font-extrabold tracking-[0.3em] text-slate-400 dark:text-slate-500 uppercase">CAN STUDIO</div>
             <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 transition-all text-slate-700 dark:text-slate-200 shadow-2xs" title="Tema Değiştir">
@@ -54,36 +52,30 @@
             </button>
         </div>
 
-        <!-- Başlık Bölümü -->
         <div>
             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Kademeli Blur</h1>
             <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Fotoğraf veya videolarınıza tam ekran ya da seçmeli bölgesel blur uygulayın.</p>
         </div>
 
-        <!-- iOS Segmented Control: Medya Modu -->
         <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
             <button onclick="switchMediaType('image')" id="tab-image" class="py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all">Fotoğraf Modu</button>
             <button onclick="switchMediaType('video')" id="tab-video" class="py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Video Modu</button>
         </div>
 
-        <!-- iOS Segmented Control: Blur Türü -->
         <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
             <button onclick="setBlurMode('full')" id="mode-full" class="py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all">Tam Ekran Blur</button>
             <button onclick="setBlurMode('partial')" id="mode-partial" class="py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Bölgesel (Seçmeli)</button>
         </div>
 
-        <!-- Önizleme Alanı -->
         <div id="preview-container" class="hidden relative w-full h-60 sm:h-72 bg-black rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner select-none touch-none">
             <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
-            <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" muted playsinline></video>
-            <!-- Seçim Çerçevesi -->
+            <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" muted playsinline controls></video>
             <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/20 hidden pointer-events-none z-20 rounded-lg"></div>
         </div>
         <div id="selection-info" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 text-center hidden">
             ✨ Bölgesel Mod Aktif: Medya üzerinde blurlanmasını istediğiniz alanı sürükleyerek seçin.
         </div>
 
-        <!-- Blur Kademe Slider Kartı -->
         <div class="flex flex-col gap-2 bg-slate-100/90 dark:bg-white/5 p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <div class="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
                 <span>Blur Yoğunluğu (Kademe)</span>
@@ -94,17 +86,14 @@
                    class="w-full cursor-pointer mt-1">
         </div>
 
-        <!-- Dosya Yükleme Alanı -->
         <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-blue-500 dark:hover:border-blue-400 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-white/5 group">
             <svg class="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center" id="file-label">Medya seçmek için dokunun veya sürükleyin</span>
             <input type="file" id="file-input" accept="image/*,video/*" class="hidden" onchange="handleFileSelect(this)">
         </label>
 
-        <!-- Durum Çubuğu -->
         <div id="status-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
 
-        <!-- İndir Butonu -->
         <button onclick="processMedia()" id="action-btn" disabled class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
             Önizlemedeki Kademeyle Cihaza İndir
         </button>
@@ -114,12 +103,12 @@
     <script>
         let state = {
             image: { file: null, originalImage: null, name: "" },
-            video: { file: null, url: "", name: "", width: 0, height: 0 }
+            video: { file: null, url: "", name: "" }
         };
         
         let mediaType = 'image';
         let blurMode = 'full'; 
-        let selectedBox = null;
+        let selectedRatioBox = null; // Yüzdesel oranlar: {rx, ry, rw, rh}
 
         let canvas = document.getElementById('preview-canvas');
         let ctx = canvas.getContext('2d');
@@ -136,7 +125,7 @@
             if (mediaType === type) return;
             mediaType = type;
             const fileInput = document.getElementById('file-input');
-            selectedBox = null;
+            selectedRatioBox = null;
             document.getElementById('selection-box').classList.add('hidden');
             
             document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
@@ -180,7 +169,7 @@
                 fullBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
                 partBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.add('hidden');
-                selectedBox = null;
+                selectedRatioBox = null;
                 document.getElementById('selection-box').classList.add('hidden');
             } else {
                 partBtn.className = "py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all";
@@ -198,13 +187,16 @@
             document.getElementById('intensity').value = 0;
             document.getElementById('intensity-val').innerText = "0 px";
             document.getElementById('status-text').innerText = "Sistem Hazır.";
-            selectedBox = null;
+            selectedRatioBox = null;
         }
 
         function updateBlur(val) {
             document.getElementById('intensity-val').innerText = val + ' px';
             if (mediaType === 'image' && state.image.originalImage) {
                 requestAnimationFrame(drawPreview);
+            } else if (mediaType === 'video') {
+                const blurVal = val;
+                videoEl.style.filter = blurMode === 'full' ? `blur(${blurVal}px)` : 'none';
             }
         }
 
@@ -216,20 +208,14 @@
                 document.getElementById('preview-container').classList.remove('hidden');
 
                 if (file.type.startsWith('video/')) {
-                    // Kullanıcı yanlış sekmedeyse otomatik video moduna al
                     if (mediaType !== 'video') switchMediaType('video');
                     state.video.file = file;
                     state.video.name = file.name;
                     state.video.url = URL.createObjectURL(file);
                     document.getElementById('preview-video').classList.remove('hidden');
                     document.getElementById('preview-canvas').classList.add('hidden');
-                    
                     videoEl.src = state.video.url;
-                    videoEl.onloadedmetadata = function() {
-                        state.video.width = videoEl.videoWidth;
-                        state.video.height = videoEl.videoHeight;
-                        document.getElementById('status-text').innerText = "Video hazır. Alan seçebilirsiniz.";
-                    };
+                    document.getElementById('status-text').innerText = "Video hazır. Alan seçebilirsiniz.";
                 } else {
                     if (mediaType !== 'image') switchMediaType('image');
                     state.image.file = file;
@@ -253,7 +239,7 @@
             }
         }
 
-        // --- HASSAS SEÇİM MOTORU (Video & Fotoğraf Uyumlu) ---
+        // --- KUSURSUZ YÜZDESEL ORAN HESAPLAYICI SEÇİM MOTORU ---
         const activeContainer = document.getElementById('preview-container');
 
         function startSelection(clientX, clientY) {
@@ -308,24 +294,19 @@
                 const relHeight = boxRect.height;
 
                 if (relWidth > 5 && relHeight > 5) {
-                    const natWidth = mediaType === 'image' ? canvas.width : state.video.width;
-                    const natHeight = mediaType === 'image' ? canvas.height : state.video.height;
-
-                    const scaleX = natWidth / mediaRect.width;
-                    const scaleY = natHeight / mediaRect.height;
-
-                    selectedBox = {
-                        x: Math.max(0, Math.round(relLeft * scaleX)),
-                        y: Math.max(0, Math.round(relTop * scaleY)),
-                        width: Math.min(natWidth, Math.round(relWidth * scaleX)),
-                        height: Math.min(natHeight, Math.round(relHeight * scaleY))
+                    // Yüzdesel oranları hesapla (0 ile 1 arasında)
+                    selectedRatioBox = {
+                        rx: Math.max(0, relLeft / mediaRect.width),
+                        ry: Math.max(0, relTop / mediaRect.height),
+                        rw: Math.min(1, relWidth / mediaRect.width),
+                        rh: Math.min(1, relHeight / mediaRect.height)
                     };
 
                     document.getElementById('status-text').innerText = "Bölge başarıyla seçildi! İndirebilirsiniz.";
                     if (mediaType === 'image') drawPreview();
                 } else {
                     boxEl.classList.add('hidden');
-                    selectedBox = null;
+                    selectedRatioBox = null;
                 }
             }
         }
@@ -360,10 +341,15 @@
                         ctx.filter = `blur(${blurVal}px)`;
                         ctx.drawImage(state.image.originalImage, 0, 0);
                         ctx.filter = 'none';
-                    } else if (blurMode === 'partial' && selectedBox && selectedBox.width > 5 && selectedBox.height > 5) {
+                    } else if (blurMode === 'partial' && selectedRatioBox) {
+                        const px = selectedRatioBox.rx * canvas.width;
+                        const py = selectedRatioBox.ry * canvas.height;
+                        const pw = selectedRatioBox.rw * canvas.width;
+                        const ph = selectedRatioBox.rh * canvas.height;
+
                         ctx.save();
                         ctx.beginPath();
-                        ctx.rect(selectedBox.x, selectedBox.y, selectedBox.width, selectedBox.height);
+                        ctx.rect(px, py, pw, ph);
                         ctx.clip();
                         
                         ctx.filter = `blur(${blurVal}px)`;
@@ -373,7 +359,7 @@
 
                         ctx.strokeStyle = '#3b82f6';
                         ctx.lineWidth = 4;
-                        ctx.strokeRect(selectedBox.x, selectedBox.y, selectedBox.width, selectedBox.height);
+                        ctx.strokeRect(px, py, pw, ph);
                     }
                 }
             }
@@ -395,8 +381,8 @@
             formData.append("intensity", blurIntensity);
             formData.append("media_type", mediaType);
             
-            if (blurMode === 'partial' && selectedBox) {
-                formData.append("box", JSON.stringify(selectedBox));
+            if (blurMode === 'partial' && selectedRatioBox) {
+                formData.append("box", JSON.stringify(selectedRatioBox));
             }
 
             try {
