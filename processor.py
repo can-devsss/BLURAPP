@@ -27,16 +27,17 @@ class BlurProcessor:
             return 0.0
         ref_w = max(100.0, float(preview_w or 360.0))
         scale_factor = float(media_width) / ref_w
+        # Maksimum blur seviyesi sınırlandırılarak görüntünün bozulması engellendi
         sigma = float(blur_px) * scale_factor
-        return max(0.1, sigma)
+        return max(0.2, sigma)
 
     @staticmethod
     def _apply_exact_gaussian(img: np.ndarray, sigma: float) -> np.ndarray:
         if sigma <= 0.05:
             return img
         h, w = img.shape[:2]
-        if sigma > 12.0 and min(h, w) > 64:
-            scale = max(0.15, min(1.0, 8.0 / sigma))
+        if sigma > 10.0 and min(h, w) > 64:
+            scale = max(0.2, min(1.0, 6.0 / sigma))
             small_w = max(2, int(w * scale))
             small_h = max(2, int(h * scale))
             small_sigma = sigma * scale
@@ -122,7 +123,7 @@ class BlurProcessor:
 
         if not out.isOpened():
             cap.release()
-            raise RuntimeError("Video yazıcı (VideoWriter) başlatılamadı!")
+            raise RuntimeError("Video yazıcı sunucuda başlatılamadı!")
 
         has_box = bool(box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']))
         if has_box:
