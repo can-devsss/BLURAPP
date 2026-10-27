@@ -67,18 +67,18 @@
             <button onclick="setBlurMode('partial')" id="mode-partial" class="py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Bölgesel (Seçmeli)</button>
         </div>
 
-        <!-- ÖNİZLEME ALANI (Native kontroller yok, ses/ikon sızıntısı bitti) -->
+        <!-- ÖNİZLEME ALANI -->
         <div id="preview-container" class="hidden relative w-full h-60 sm:h-72 bg-black rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner select-none touch-none">
             <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
-            
             <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" playsinline preload="metadata"></video>
             
-            <!-- Özel Şık Oynat / Durdur Katmanı -->
-            <div id="customPlayOverlay" onclick="toggleVideoPlay()" class="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer transition-colors z-10">
-                <div id="playBtnBg" class="w-16 h-16 bg-black/70 border-2 border-white/90 rounded-full flex items-center justify-center text-white text-xl pl-0.5 shadow-xl transition-transform hover:scale-105">▶</div>
-            </div>
-
             <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/20 hidden pointer-events-none z-20 rounded-lg"></div>
+        </div>
+
+        <!-- VİDEO İÇİN ALT KONTROL BARI (Ortadaki devasa oynat tuşu tamamen kaldırıldı) -->
+        <div id="video-controls-bar" class="hidden flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
+            <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-all">▶</button>
+            <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)" class="w-full cursor-pointer">
         </div>
 
         <div id="selection-info" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 text-center hidden">
@@ -122,8 +122,9 @@
         let canvas = document.getElementById('preview-canvas');
         let ctx = canvas.getContext('2d');
         let videoEl = document.getElementById('preview-video');
-        let playOverlay = document.getElementById('customPlayOverlay');
-        let playBtnBg = document.getElementById('playBtnBg');
+        let videoControlsBar = document.getElementById('video-controls-bar');
+        let playPauseBtn = document.getElementById('play-pause-btn');
+        let videoProgress = document.getElementById('video-progress');
         
         let isDrawing = false;
         let startX = 0, startY = 0;
@@ -132,25 +133,32 @@
             document.getElementById('app-html').classList.toggle('dark');
         }
 
+        // Alt bardan video oynat / durdur
         function toggleVideoPlay() {
             if (videoEl.paused) {
                 videoEl.play();
-                playBtnBg.innerText = "❚❚";
-                playOverlay.style.background = "transparent";
-                playBtnBg.style.opacity = "0";
+                playPauseBtn.innerText = "❚❚";
             } else {
                 videoEl.pause();
-                playBtnBg.innerText = "▶";
-                playOverlay.style.background = "rgba(0,0,0,0.3)";
-                playBtnBg.style.opacity = "1";
+                playPauseBtn.innerText = "▶";
             }
         }
 
-        videoEl.addEventListener('ended', () => {
-            playBtnBg.innerText = "▶";
-            playOverlay.style.background = "rgba(0,0,0,0.3)";
-            playBtnBg.style.opacity = "1";
+        videoEl.addEventListener('timeupdate', () => {
+            if (videoEl.duration) {
+                videoProgress.value = (videoEl.currentTime / videoEl.duration) * 100;
+            }
         });
+
+        videoEl.addEventListener('ended', () => {
+            playPauseBtn.innerText = "▶";
+        });
+
+        function seekVideo(val) {
+            if (videoEl.duration) {
+                videoEl.currentTime = (val / 100) * videoEl.duration;
+            }
+        }
 
         function switchMediaType(type) {
             if (mediaType === type) return;
@@ -169,6 +177,7 @@
                     document.getElementById('preview-container').classList.remove('hidden');
                     document.getElementById('preview-video').classList.remove('hidden');
                     document.getElementById('preview-canvas').classList.add('hidden');
+                    videoControlsBar.classList.remove('hidden');
                     document.getElementById('action-btn').disabled = false;
                 } else {
                     document.getElementById('file-label').innerText = "Video seçmek için dokunun (.mp4, .mov)";
@@ -176,6 +185,7 @@
                 }
             } else {
                 fileInput.accept = "image/*";
+                videoControlsBar.classList.add('hidden');
                 if (state.image.file) {
                     document.getElementById('file-label').innerText = "Seçilen: " + state.image.name;
                     document.getElementById('preview-container').classList.remove('hidden');
@@ -207,13 +217,14 @@
                 fullBtn.className = "py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all";
                 infoEl.classList.remove('hidden');
             }
-            drawPreview();
+            if (mediaType === 'image') drawPreview();
         }
 
         function resetWorkspaceUI() {
             document.getElementById('preview-container').classList.add('hidden');
             document.getElementById('preview-canvas').classList.add('hidden');
             document.getElementById('preview-video').classList.add('hidden');
+            videoControlsBar.classList.add('hidden');
             document.getElementById('action-btn').disabled = true;
             document.getElementById('intensity').value = 0;
             document.getElementById('intensity-val').innerText = "0 px";
@@ -242,6 +253,7 @@
                     state.video.url = URL.createObjectURL(file);
                     document.getElementById('preview-video').classList.remove('hidden');
                     document.getElementById('preview-canvas').classList.add('hidden');
+                    videoControlsBar.classList.remove('hidden');
                     videoEl.src = state.video.url;
                     document.getElementById('status-text').innerText = "Video hazır. Alan seçebilirsiniz.";
                 } else {
@@ -250,6 +262,7 @@
                     state.image.name = file.name;
                     document.getElementById('preview-canvas').classList.remove('hidden');
                     document.getElementById('preview-video').classList.add('hidden');
+                    videoControlsBar.classList.add('hidden');
 
                     const reader = new FileReader();
                     reader.onload = function(e) {
