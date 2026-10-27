@@ -85,6 +85,7 @@ def _run_job(job_id: str, input_path: str, output_path: str, output_filename: st
             if job_id in JOBS: JOBS[job_id]["status"] = "cancelled"
         Path(output_path).unlink(missing_ok=True)
     except Exception as exc:
+        print(f"[JOB_FAILED] job_id={job_id} media_type={media_type} error={type(exc).__name__}: {exc}")
         with JOBS_LOCK:
             if job_id in JOBS:
                 JOBS[job_id].update(status="failed", error=str(exc)[:500])
@@ -122,10 +123,10 @@ async def process_media(file: UploadFile = File(...), intensity: float = Form(..
     allowed_video = {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}
     if media_type == "image" and suffix not in allowed_image: suffix = ".jpg"
     if media_type == "video" and suffix not in allowed_video:
-        await file.close(); SEMAPHORE.release()
+        await file.close()
         raise HTTPException(415, "Desteklenmeyen video uzantısı.")
     if media_type == "image" and suffix not in allowed_image:
-        await file.close(); SEMAPHORE.release()
+        await file.close()
         raise HTTPException(415, "Desteklenmeyen görsel uzantısı.")
     try:
         box_data = None
@@ -171,7 +172,8 @@ async def process_media(file: UploadFile = File(...), intensity: float = Form(..
                             media_type, float(intensity), box_data, float(preview_w))
         except Exception:
             with JOBS_LOCK: JOBS.pop(job_id, None)
-            input_path.unlink(missing_ok=True); SEMAPHORE.release(); raise
+            input_path.unlink(missing_ok=True)
+            raise
         return {"success":True,"job_id":job_id}
     except HTTPException:
         SEMAPHORE.release(); raise
@@ -185,7 +187,11 @@ async def process_media(file: UploadFile = File(...), intensity: float = Form(..
 def get_job_status(job_id: str):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
-        if not job: raise HTTPException(404, "İşlem bulunamadı veya süresi doldu.")
+        if not job:
+            # Jobs live in process memory; a 404 here often means the service restarted
+            # while a long video was processing. Log this so Render runtime logs can confirm.
+            print(f"[JOB_STATUS_MISSING] job_id={job_id}; process restarted, instance changed, or job expired")
+            raise HTTPException(404, "İşlem kaydı sunucuda bulunamadı. Sunucu yeniden başlamış olabilir; Render loglarını kontrol edin ve videoyu tekrar deneyin.")
         return {k: job.get(k) for k in ("status","progress","download_url","download_name","error")}
 
 @app.post("/api/cancel-job/{job_id}")
