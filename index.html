@@ -49,36 +49,36 @@
             <div class="w-8"></div>
             <div class="text-xs font-extrabold tracking-[0.25em] text-slate-900 dark:text-white uppercase text-center">CAN STUDIO</div>
             <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-200 shadow-xs" title="Tema Değiştir">
-                <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 4 4 0 018 0z"></path></svg>
             </button>
         </div>
 
         <div>
             <h1 class="text-2xl font-extrabold tracking-tight">Kademeli ve Bölgeli Medya Konsolu</h1>
-            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">İster tam ekran blur uygulayın, ister fotoğraf üzerinde alan seçerek sadece o kısmı blurlaştırın.</p>
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">İster tam ekran blur uygulayın, ister medya üzerinde alan seçerek sadece o kısmı blurlaştırın.</p>
         </div>
 
-        <!-- Mod & Sekmeler -->
+        <!-- Sekmeler -->
         <div class="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
             <button onclick="switchMediaType('image')" id="tab-image" class="py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all">Fotoğraf Modu</button>
             <button onclick="switchMediaType('video')" id="tab-video" class="py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Video Modu</button>
         </div>
 
-        <!-- Blur Türü Seçimi (Tam Ekran vs Bölgesel) -->
+        <!-- Blur Türü Seçimi -->
         <div class="flex gap-2">
             <button onclick="setBlurMode('full')" id="mode-full" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 transition-all">Tam Ekran Blur</button>
             <button onclick="setBlurMode('partial')" id="mode-partial" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all">Bölgesel (Seçmeli) Blur</button>
         </div>
 
         <!-- Önizleme Alanı -->
-        <div id="preview-container" class="hidden relative w-full h-72 bg-slate-950 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-inner">
+        <div id="preview-container" class="hidden relative w-full h-72 bg-slate-950 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-inner select-none">
             <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
-            <video id="preview-video" class="max-h-full max-w-full object-contain hidden" muted playsinline></video>
-            <!-- Seçim kutusu overlay -->
-            <div id="selection-box" class="absolute border-2 border-dashed border-cyan-400 bg-cyan-500/20 hidden pointer-events-none"></div>
+            <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" muted playsinline></video>
+            <!-- Görsel Seçim Çerçevesi -->
+            <div id="selection-box" class="absolute border-2 border-dashed border-cyan-400 bg-cyan-500/20 hidden pointer-events-none z-20"></div>
         </div>
         <div id="selection-info" class="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 text-center hidden">
-            💡 Bölgesel Mod Aktif: Görsel üzerinde blurlanmasını istediğiniz alanı fareyle sürükleyerek seçin.
+            💡 Bölgesel Mod Aktif: Medya üzerinde blurlanmasını istediğiniz alanı fareyle basıp sürükleyerek seçin.
         </div>
 
         <!-- Slider -->
@@ -95,7 +95,7 @@
         <!-- Dosya Seçim Alanı -->
         <label id="drop-zone" class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-slate-800/20 group">
             <svg class="w-8 h-8 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center" id="file-label">Fotoğraf seçmek için tıklayın veya sürükleyin</span>
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center" id="file-label">Medya seçmek için tıklayın veya sürükleyin</span>
             <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(this)">
         </label>
 
@@ -112,17 +112,19 @@
     <script>
         let state = {
             image: { file: null, originalImage: null, name: "" },
-            video: { file: null, url: "", name: "" }
+            video: { file: null, url: "", name: "", width: 0, height: 0 }
         };
         
         let mediaType = 'image';
-        let blurMode = 'full'; // 'full' veya 'partial'
-        let selectedBox = null; // {x, y, width, height} (Orijinal görsel çözünürlüğünde)
+        let blurMode = 'full'; 
+        let selectedBox = null; // Gerçek piksel cinsinden {x, y, width, height}
 
         let canvas = document.getElementById('preview-canvas');
         let ctx = canvas.getContext('2d');
+        let videoEl = document.getElementById('preview-video');
+        
         let isDrawing = false;
-        let startX, startY;
+        let startX = 0, startY = 0;
 
         function toggleTheme() {
             document.getElementById('app-html').classList.toggle('dark');
@@ -132,21 +134,19 @@
             if (mediaType === type) return;
             mediaType = type;
             const fileInput = document.getElementById('file-input');
+            selectedBox = null;
+            document.getElementById('selection-box').classList.add('hidden');
             
             document.getElementById('tab-image').className = type === 'image' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
             document.getElementById('tab-video').className = type === 'video' ? 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all' : 'py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all';
 
             if (type === 'video') {
                 fileInput.accept = "video/*";
-                setBlurMode('full'); // Videoda şimdilik tam ekran geçerli
-                document.getElementById('mode-partial').style.opacity = '0.4';
-                document.getElementById('mode-partial').style.pointerEvents = 'none';
                 if (state.video.file) {
                     document.getElementById('file-label').innerText = "Seçilen: " + state.video.name;
                     document.getElementById('preview-container').classList.remove('hidden');
                     document.getElementById('preview-video').classList.remove('hidden');
                     document.getElementById('preview-canvas').classList.add('hidden');
-                    document.getElementById('preview-video').src = state.video.url;
                     document.getElementById('action-btn').disabled = false;
                 } else {
                     document.getElementById('file-label').innerText = "Video seçmek için tıklayın (.mp4, .mov)";
@@ -154,8 +154,6 @@
                 }
             } else {
                 fileInput.accept = "image/*";
-                document.getElementById('mode-partial').style.opacity = '1';
-                document.getElementById('mode-partial').style.pointerEvents = 'auto';
                 if (state.image.file) {
                     document.getElementById('file-label').innerText = "Seçilen: " + state.image.name;
                     document.getElementById('preview-container').classList.remove('hidden');
@@ -205,8 +203,6 @@
             document.getElementById('intensity-val').innerText = val + ' px';
             if (mediaType === 'image' && state.image.originalImage) {
                 requestAnimationFrame(drawPreview);
-            } else if (mediaType === 'video' && state.video.file) {
-                document.getElementById('preview-video').style.filter = `blur(${val}px)`;
             }
         }
 
@@ -241,55 +237,99 @@
                     state.video.url = URL.createObjectURL(file);
                     document.getElementById('preview-video').classList.remove('hidden');
                     document.getElementById('preview-canvas').classList.add('hidden');
-                    const videoEl = document.getElementById('preview-video');
+                    
                     videoEl.src = state.video.url;
-                    videoEl.style.filter = `blur(${document.getElementById('intensity').value}px)`;
-                    document.getElementById('status-text').innerText = "Video hazır.";
+                    videoEl.onloadedmetadata = function() {
+                        state.video.width = videoEl.videoWidth;
+                        state.video.height = videoEl.videoHeight;
+                        document.getElementById('status-text').innerText = "Video hazır. Alan seçebilirsiniz.";
+                    };
                 }
             }
         }
 
-        // Canvas Üzerinde Fare ile Alan Seçme Olayları (Bölgesel Blur İçin)
-        canvas.addEventListener('mousedown', (e) => {
-            if (blurMode !== 'partial' || !state.image.originalImage) return;
+        // --- GELİŞMİŞ HASSAS FARE SEÇİM MOTORU (Görsel ve Video için ortak) ---
+        const activeContainer = document.getElementById('preview-container');
+
+        activeContainer.addEventListener('mousedown', (e) => {
+            if (blurMode !== 'partial') return;
+            if (mediaType === 'image' && !state.image.originalImage) return;
+            if (mediaType === 'video' && !state.video.file) return;
+
             isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            startX = (e.clientX - rect.left) * scaleX;
-            startY = (e.clientY - rect.top) * scaleY;
+            const rect = activeContainer.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+
+            const boxEl = document.getElementById('selection-box');
+            boxEl.style.left = startX + 'px';
+            boxEl.style.top = startY + 'px';
+            boxEl.style.width = '0px';
+            boxEl.style.height = '0px';
+            boxEl.classList.remove('hidden');
         });
 
-        canvas.addEventListener('mousemove', (e) => {
+        activeContainer.addEventListener('mousemove', (e) => {
             if (!isDrawing || blurMode !== 'partial') return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const currentX = (e.clientX - rect.left) * scaleX;
-            const currentY = (e.clientY - rect.top) * scaleY;
+            const rect = activeContainer.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
 
-            selectedBox = {
-                x: Math.min(startX, currentX),
-                y: Math.min(startY, currentY),
-                width: Math.abs(currentX - startX),
-                height: Math.abs(currentY - startY)
-            };
-            drawPreview();
-            showDOMSelectionBox(e, rect);
+            const left = Math.min(startX, currentX);
+            const top = Math.min(startY, currentY);
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+
+            const boxEl = document.getElementById('selection-box');
+            boxEl.style.left = left + 'px';
+            boxEl.style.top = top + 'px';
+            boxEl.style.width = width + 'px';
+            boxEl.style.height = height + 'px';
         });
 
-        window.addEventListener('mouseup', () => {
-            if (isDrawing) {
-                isDrawing = false;
-                document.getElementById('status-text').innerText = "Bölge seçildi. İndirebilirsiniz.";
+        window.addEventListener('mouseup', (e) => {
+            if (!isDrawing) return;
+            isDrawing = false;
+
+            if (blurMode === 'partial') {
+                const rect = activeContainer.getBoundingClientRect();
+                const boxEl = document.getElementById('selection-box');
+                
+                const boxRect = boxEl.getBoundingClientRect();
+                const containerRect = activeContainer.getBoundingClientRect();
+
+                // Görselin veya videonun DOM üzerindeki gerçek render boyutunu bulalım
+                const mediaElement = mediaType === 'image' ? canvas : videoEl;
+                const mediaRect = mediaElement.getBoundingClientRect();
+
+                // Eğer seçim kutusu medya alanının içindeyse gerçek koordinatları hesapla
+                const relLeft = boxRect.left - mediaRect.left;
+                const relTop = boxRect.top - mediaRect.top;
+                const relWidth = boxRect.width;
+                const relHeight = boxRect.height;
+
+                if (relWidth > 5 && relHeight > 5) {
+                    const natWidth = mediaType === 'image' ? canvas.width : state.video.width;
+                    const natHeight = mediaType === 'image' ? canvas.height : state.video.height;
+
+                    const scaleX = natWidth / mediaRect.width;
+                    const scaleY = natHeight / mediaRect.height;
+
+                    selectedBox = {
+                        x: Math.max(0, Math.round(relLeft * scaleX)),
+                        y: Math.max(0, Math.round(relTop * scaleY)),
+                        width: Math.min(natWidth, Math.round(relWidth * scaleX)),
+                        height: Math.min(natHeight, Math.round(relHeight * scaleY))
+                    };
+
+                    document.getElementById('status-text').innerText = "Bölge başarıyla seçildi! İndirebilirsiniz.";
+                    if (mediaType === 'image') drawPreview();
+                } else {
+                    boxEl.classList.add('hidden');
+                    selectedBox = null;
+                }
             }
         });
-
-        function showDOMSelectionBox(e, rect) {
-            const boxEl = document.getElementById('selection-box');
-            // DOM üzerinde görselleştirme için
-            // Basitçe kutu gösterimi
-        }
 
         function drawPreview() {
             if (mediaType === 'image' && !state.image.originalImage) return;
@@ -305,7 +345,6 @@
                         ctx.drawImage(state.image.originalImage, 0, 0);
                         ctx.filter = 'none';
                     } else if (blurMode === 'partial' && selectedBox && selectedBox.width > 5 && selectedBox.height > 5) {
-                        // Seçilen bölgeyi geçici bir canvas'a alıp blur verip geri basıyoruz
                         ctx.save();
                         ctx.beginPath();
                         ctx.rect(selectedBox.x, selectedBox.y, selectedBox.width, selectedBox.height);
@@ -316,9 +355,8 @@
                         ctx.restore();
                         ctx.filter = 'none';
 
-                        // Seçim sınır çizgisi
                         ctx.strokeStyle = '#06b6d4';
-                        ctx.lineWidth = 3;
+                        ctx.lineWidth = 4;
                         ctx.strokeRect(selectedBox.x, selectedBox.y, selectedBox.width, selectedBox.height);
                     }
                 }
@@ -340,6 +378,7 @@
             formData.append("file", currentFile);
             formData.append("intensity", blurIntensity);
             formData.append("media_type", mediaType);
+            
             if (blurMode === 'partial' && selectedBox) {
                 formData.append("box", JSON.stringify(selectedBox));
             }
