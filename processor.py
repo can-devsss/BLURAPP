@@ -32,8 +32,9 @@ class BlurProcessor:
             bh = max(1, min(bh, h - y))
 
             roi = img[y:y+bh, x:x+bw]
-            blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
-            img[y:y+bh, x:x+bw] = blurred_roi
+            if roi.size > 0:
+                blurred_roi = cv2.GaussianBlur(roi, (ksize, ksize), 0)
+                img[y:y+bh, x:x+bw] = blurred_roi
         else:
             img = cv2.GaussianBlur(img, (ksize, ksize), 0)
 
@@ -66,7 +67,6 @@ class BlurProcessor:
 
             if blur_strength > 0:
                 if box_data and all(k in box_data for k in ['rx', 'ry', 'rw', 'rh']):
-                    # Yüzdesel oranları gerçek video piksel çözünürlüğüne çarpıyoruz
                     x = int(float(box_data['rx']) * width)
                     y = int(float(box_data['ry']) * height)
                     bw = int(float(box_data['rw']) * width)
@@ -89,7 +89,6 @@ class BlurProcessor:
         cap.release()
         out.release()
 
-        # FFmpeg ile orijinal ses kanalını videoya geri ekleme
         try:
             probe_cmd = ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
             has_audio = subprocess.run(probe_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
