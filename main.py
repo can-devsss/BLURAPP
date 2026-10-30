@@ -25,6 +25,13 @@ MAX_QUEUED_JOBS = 12
 SEMAPHORE = threading.BoundedSemaphore(MAX_QUEUED_JOBS)
 
 app = FastAPI(title="CAN STUDIO - Blur Engine")
+
+# UptimeRobot ve Render uyku modunu önlemek için Sağlık Kontrolü Rotası
+@app.get("/healthz", methods=["GET", "HEAD"])
+@app.head("/healthz")
+async def health_check():
+    return {"status": "ok"}, 200
+
 # Aynı origin'de çalışan frontend için CORS gerekmez. Geliştirme için izin verilen origin'ler env ile eklenebilir.
 allowed_origins = [x.strip() for x in os.getenv("BLUR_ALLOWED_ORIGINS", "").split(",") if x.strip()]
 if allowed_origins:
@@ -169,7 +176,7 @@ async def process_media(file: UploadFile = File(...), intensity: float = Form(..
         with JOBS_LOCK: JOBS[job_id] = job
         try:
             executor.submit(_run_job, job_id, str(input_path), str(output_path), output_filename,
-                            media_type, float(intensity), box_data, float(preview_w))
+                          media_type, float(intensity), box_data, float(preview_w))
         except Exception:
             with JOBS_LOCK: JOBS.pop(job_id, None)
             input_path.unlink(missing_ok=True)
@@ -188,8 +195,6 @@ def get_job_status(job_id: str):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
         if not job:
-            # Jobs live in process memory; a 404 here often means the service restarted
-            # while a long video was processing. Log this so Render runtime logs can confirm.
             print(f"[JOB_STATUS_MISSING] job_id={job_id}; process restarted, instance changed, or job expired")
             raise HTTPException(404, "İşlem kaydı sunucuda bulunamadı. Sunucu yeniden başlamış olabilir; Render loglarını kontrol edin ve videoyu tekrar deneyin.")
         return {k: job.get(k) for k in ("status","progress","download_url","download_name","error")}
@@ -206,7 +211,6 @@ def cancel_job(job_id: str):
 
 @app.get("/api/download/{filename}")
 def download_file(filename: str):
-    # Only allow generated UUID-based output filenames.
     safe = Path(filename).name
     if safe != filename or not safe.startswith("blurred_") or any(x in safe for x in ("/","\\","..")):
         raise HTTPException(400, "Geçersiz dosya adı.")
@@ -218,4 +222,3 @@ def download_file(filename: str):
 @app.on_event("shutdown")
 def shutdown_executor():
     executor.shutdown(wait=False, cancel_futures=True)
-
