@@ -26,13 +26,11 @@ SEMAPHORE = threading.BoundedSemaphore(MAX_QUEUED_JOBS)
 
 app = FastAPI(title="CAN STUDIO - Blur Engine")
 
-# UptimeRobot ve Render uyku modunu önlemek için Sağlık Kontrolü Rotası
-@app.get("/healthz", methods=["GET", "HEAD"])
-@app.head("/healthz")
+# UptimeRobot / Uykuyu Önleme İçin Kesin Çözüm Sağlık Kontrolü Rotası
+@app.api_route("/healthz", methods=["GET", "POST", "HEAD", "OPTIONS"])
 async def health_check():
-    return {"status": "ok"}, 200
+    return {"status": "ok"}
 
-# Aynı origin'de çalışan frontend için CORS gerekmez. Geliştirme için izin verilen origin'ler env ile eklenebilir.
 allowed_origins = [x.strip() for x in os.getenv("BLUR_ALLOWED_ORIGINS", "").split(",") if x.strip()]
 if allowed_origins:
     app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=False,
