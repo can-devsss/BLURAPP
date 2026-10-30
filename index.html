@@ -1,228 +1,729 @@
 <!DOCTYPE html>
-<html lang="tr" id="app-html" class="h-full">
+<html lang="tr" id="app-html" class="h-full dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CAN STUDIO - Kademeli Blur</title>
+<title>CAN STUDIO — Pro Blur & Sansür Motoru</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Inter', 'sans-serif'] }
+    }
+  }
+}
+</script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;touch-action:manipulation}
-input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:9999px;background:rgba(150,150,150,.25);outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .15s ease}
-input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12)}
-#preview-canvas,#preview-video{max-width:100%;max-height:100%;object-fit:contain}
+  * { -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    touch-action: manipulation;
+  }
+  /* iOS Glassmorphism Background */
+  .ios-bg {
+    background: radial-gradient(circle at 15% 15%, rgba(0, 122, 255, 0.15), transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(175, 82, 222, 0.14), transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(52, 199, 89, 0.06), transparent 60%);
+  }
+  .ios-card {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: saturate(190%) blur(35px);
+    -webkit-backdrop-filter: saturate(190%) blur(35px);
+  }
+  .dark .ios-card {
+    background: rgba(28, 28, 30, 0.78);
+    backdrop-filter: saturate(190%) blur(35px);
+    -webkit-backdrop-filter: saturate(190%) blur(35px);
+  }
+  .ios-subcard {
+    background: rgba(118, 118, 128, 0.10);
+  }
+  .dark .ios-subcard {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  /* iOS Range Slider */
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 7px;
+    border-radius: 9999px;
+    background: rgba(120, 120, 128, 0.25);
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28), 0 0 1px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+  input[type=range]::-webkit-slider-thumb:active { transform: scale(0.95); }
+  #preview-canvas, #preview-video { max-width: 100%; max-height: 100%; object-fit: contain; }
 </style>
-<script>tailwind.config={darkMode:'class',theme:{extend:{}}}</script>
 </head>
-<body id="app-body" class="bg-[#f2f2f7] dark:bg-[#000000] text-slate-900 dark:text-slate-100 min-h-full flex items-center justify-center p-3 sm:p-6 transition-colors duration-300">
-<div class="w-full max-w-xl bg-white/85 dark:bg-[#1c1c1e]/90 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_50px_rgba(0,0,0,0.6)] rounded-[36px] p-5 sm:p-8 flex flex-col gap-5 relative">
-  <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-3">
-    <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div><div class="text-[11px] font-extrabold tracking-[0.3em] text-slate-400 dark:text-slate-500 uppercase">CAN STUDIO</div></div>
-    <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 transition-all text-slate-700 dark:text-slate-200 shadow-2xs" title="Tema Değiştir" aria-label="Tema değiştir">
-      <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-    </button>
+<body class="bg-[#F2F2F7] dark:bg-[#000000] ios-bg text-slate-900 dark:text-white min-h-screen flex items-center justify-center p-3 sm:p-6 transition-colors duration-300">
+
+<div class="w-full max-w-xl ios-card border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.12)] dark:shadow-[0_28px_70px_rgba(0,0,0,0.75)] rounded-[38px] p-5 sm:p-7 flex flex-col gap-4 relative overflow-hidden">
+
+  <!-- Üst Bar (Dynamic Island Tarzı Durum & Tema) -->
+  <div class="flex items-center justify-between pb-3 border-b border-black/5 dark:border-white/10">
+    <div class="flex items-center gap-2.5 bg-black/5 dark:bg-white/10 px-3.5 py-1.5 rounded-full">
+      <span class="w-2 h-2 rounded-full bg-[#34C759] animate-pulse"></span>
+      <span class="text-[11px] font-extrabold tracking-[0.22em] text-slate-600 dark:text-slate-300 uppercase">CAN STUDIO PRO</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="badge-resolution" class="hidden text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#5AC8FA]"></span>
+      <button onclick="toggleTheme()" class="w-9 h-9 flex items-center justify-center rounded-full ios-subcard hover:scale-105 active:scale-95 transition-all text-slate-700 dark:text-slate-200" title="Tema Değiştir">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      </button>
+    </div>
   </div>
-  <div><h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Kademeli Blur</h1><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Fotoğraf veya videolarınıza milimetrik tam ekran ya da bölgesel blur uygulayın.</p></div>
-  <div id="interactive-workspace" class="flex flex-col gap-5 transition-opacity duration-200">
-    <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
-      <button onclick="switchMediaType('image')" id="tab-image" class="py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all">Fotoğraf Modu</button>
-      <button onclick="switchMediaType('video')" id="tab-video" class="py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all">Video Modu</button>
+
+  <!-- Başlık -->
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">Akıllı Blur & Sansür</h1>
+    <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">Çoklu bölge seçimi, pikselleştirme (mozaik) ve ters portre bulanıklaştırma.</p>
+  </div>
+
+  <!-- Ana Çalışma Alanı -->
+  <div id="interactive-workspace" class="flex flex-col gap-3.5 transition-opacity duration-200">
+
+    <!-- iOS Segmented Control: Medya Türü -->
+    <div class="grid grid-cols-2 gap-1 bg-black/5 dark:bg-white/10 p-1 rounded-2xl">
+      <button onclick="switchMediaType('image')" id="tab-image" class="py-2 text-xs font-bold rounded-xl bg-white dark:bg-[#2C2C2E] text-slate-900 dark:text-white shadow-sm transition-all">📸 Fotoğraf Modu</button>
+      <button onclick="switchMediaType('video')" id="tab-video" class="py-2 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 transition-all">🎬 Video Modu</button>
     </div>
-    <div class="grid grid-cols-2 gap-1 bg-slate-200/70 dark:bg-white/10 p-1 rounded-2xl">
-      <button onclick="setBlurMode('full')" id="mode-full" class="py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all">Tam Ekran Blur</button>
-      <button onclick="setBlurMode('partial')" id="mode-partial" class="py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all">Bölgesel (Seçmeli)</button>
+
+    <!-- iOS Segmented Control: Alan Modu (3 Mod) -->
+    <div class="grid grid-cols-3 gap-1 bg-black/5 dark:bg-white/10 p-1 rounded-2xl">
+      <button onclick="setBlurMode('full')" id="mode-full" class="py-2 text-[11px] font-bold rounded-xl bg-[#007AFF] text-white shadow-sm transition-all">Tam Ekran</button>
+      <button onclick="setBlurMode('partial')" id="mode-partial" class="py-2 text-[11px] font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all">Çoklu Bölge</button>
+      <button onclick="setBlurMode('invert')" id="mode-invert" class="py-2 text-[11px] font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all">Ters (Odak)</button>
     </div>
-    <div id="preview-container" class="hidden relative w-full h-64 sm:h-72 bg-black rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner select-none touch-none">
+
+    <!-- Efekt Stili Seçici (Gaussian vs Pixelate) -->
+    <div class="grid grid-cols-2 gap-1.5">
+      <button onclick="setEffectType('gaussian')" id="effect-gaussian" class="py-2 px-3 rounded-xl text-xs font-bold border border-[#007AFF] bg-[#007AFF]/10 text-[#007AFF] dark:text-[#5AC8FA] flex items-center justify-center gap-1.5 transition-all">
+        <span>💧</span> Yumuşak (Gaussian)
+      </button>
+      <button onclick="setEffectType('pixelate')" id="effect-pixelate" class="py-2 px-3 rounded-xl text-xs font-bold border border-transparent ios-subcard text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-all">
+        <span>🟦</span> Mozaik (Sansür)
+      </button>
+    </div>
+
+    <!-- Önizleme Sahnesi -->
+    <div id="preview-container" class="hidden relative w-full h-64 sm:h-80 bg-[#0A0A0C] rounded-[28px] overflow-hidden border border-black/10 dark:border-white/10 flex items-center justify-center shadow-inner select-none touch-none">
       <canvas id="preview-canvas" class="max-h-full max-w-full object-contain cursor-crosshair hidden"></canvas>
       <video id="preview-video" class="max-h-full max-w-full object-contain cursor-crosshair hidden" playsinline webkit-playsinline muted preload="metadata"></video>
-      <div id="selection-box" class="absolute border-2 border-dashed border-blue-400 bg-blue-500/5 hidden pointer-events-none z-20 rounded-lg overflow-hidden"></div>
+      <div id="boxes-overlay" class="absolute inset-0 pointer-events-none z-20"></div>
+      <div id="active-draw-box" class="absolute border-2 border-dashed border-[#0A84FF] bg-[#0A84FF]/15 hidden pointer-events-none z-30 rounded-lg"></div>
+
+      <!-- Öncesi / Sonrası Karşılaştırma Butonu (Fotoğraf için) -->
+      <button id="compare-btn" onpointerdown="setCompare(true)" onpointerup="setCompare(false)" onpointerleave="setCompare(false)" class="hidden absolute top-3 right-3 z-30 px-3 py-1.5 rounded-full bg-black/65 backdrop-blur-md text-white text-[11px] font-bold border border-white/15 active:scale-95 transition-all select-none">
+        👁️ Basılı Tut: Orijinal
+      </button>
     </div>
-    <div id="video-controls-bar" class="hidden flex items-center gap-3 bg-slate-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
-      <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-9 h-9 shrink-0 flex items-center justify-center bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-all">▶</button>
-      <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)" class="w-full cursor-pointer" aria-label="Video konumu">
-      <button onclick="toggleVideoMute()" id="mute-btn" class="w-9 h-9 shrink-0 flex items-center justify-center bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all">🔇</button>
+
+    <!-- Video Kontrol Barı -->
+    <div id="video-controls-bar" class="hidden flex items-center gap-2.5 ios-subcard px-3.5 py-2.5 rounded-2xl">
+      <button onclick="toggleVideoPlay()" id="play-pause-btn" class="w-8 h-8 shrink-0 flex items-center justify-center bg-[#007AFF] text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all">▶</button>
+      <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" oninput="seekVideo(this.value)" class="w-full cursor-pointer">
+      <span id="video-time" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0 min-w-[38px] text-right">0:00</span>
+      <button onclick="toggleVideoMute()" id="mute-btn" class="w-8 h-8 shrink-0 flex items-center justify-center bg-black/10 dark:bg-white/10 rounded-xl text-xs font-bold active:scale-95 transition-all">🔇</button>
     </div>
-    <div id="selection-info" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center justify-between px-1 hidden"><span>✨ Medya üzerinde blurlanacak alanı sürükleyerek seçin.</span><button onclick="clearSelection()" id="clear-sel-btn" class="hidden text-[11px] font-bold text-rose-500 hover:underline ml-2 shrink-0">Seçimi Sıfırla</button></div>
-    <div class="flex flex-col gap-2.5 bg-slate-100/90 dark:bg-white/5 p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
-      <div class="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300"><span>Blur Yoğunluğu</span><div class="flex items-center gap-1.5">
-        <button onclick="nudgeBlur(-0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all">-</button>
-        <span id="intensity-val" class="px-2.5 py-1 bg-white dark:bg-white/10 rounded-xl text-slate-900 dark:text-white font-extrabold shadow-2xs min-w-[60px] text-center">0.0 px</span>
-        <button onclick="nudgeBlur(0.5)" class="w-7 h-7 rounded-lg bg-white dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-white font-extrabold flex items-center justify-center shadow-2xs active:scale-95 transition-all">+</button>
-      </div></div>
-      <input type="range" id="intensity" min="0" max="15" step="0.5" value="0" oninput="updateBlur(this.value)" class="w-full cursor-pointer mt-1" aria-label="Blur yoğunluğu">
-      <div class="flex justify-between text-[10px] text-slate-400 font-semibold"><span>Hafif</span><span>Yoğun</span></div>
+
+    <!-- Çoklu Bölge Kontrolleri -->
+    <div id="selection-info" class="hidden flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-[#007AFF]/10 border border-[#007AFF]/20 text-[11px] font-semibold text-[#007AFF] dark:text-[#5AC8FA]">
+      <span id="selection-hint">✨ Medya üzerinde sürükleyerek birden fazla kutu çizebilirsiniz.</span>
+      <div class="flex items-center gap-2 ml-auto">
+        <button onclick="undoLastBox()" id="undo-sel-btn" class="hidden px-2.5 py-1 rounded-lg bg-white/80 dark:bg-white/10 text-slate-800 dark:text-white font-bold hover:opacity-80 transition">↩ Geri Al</button>
+        <button onclick="clearSelection()" id="clear-sel-btn" class="hidden px-2.5 py-1 rounded-lg bg-[#FF3B30]/15 text-[#FF3B30] font-bold hover:bg-[#FF3B30]/25 transition">Temizle (<span id="box-count">0</span>)</button>
+      </div>
     </div>
-    <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-blue-500 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50/50 dark:bg-white/5 group">
-      <svg class="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 00-2 2H6a2 2 0 002-2z"></path></svg>
-      <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center break-all px-2" id="file-label">Medya seçmek için dokunun veya sürükleyin</span>
-      <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(this)">
+
+    <!-- Yoğunluk ve Hızlı Preset Kartı -->
+    <div class="flex flex-col gap-2.5 ios-subcard p-4 rounded-[24px] border border-black/5 dark:border-white/5">
+      <div class="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-200">
+        <span>Efekt Yoğunluğu</span>
+        <div class="flex items-center gap-1.5">
+          <button onclick="nudgeBlur(-0.5)" class="w-7 h-7 rounded-xl bg-white dark:bg-[#2C2C2E] hover:opacity-80 text-slate-800 dark:text-white font-extrabold flex items-center justify-center shadow-xs active:scale-90 transition-all">−</button>
+          <span id="intensity-val" class="px-3 py-1 bg-white dark:bg-[#2C2C2E] rounded-xl text-[#007AFF] dark:text-[#5AC8FA] font-black shadow-xs min-w-[64px] text-center">4.0 px</span>
+          <button onclick="nudgeBlur(0.5)" class="w-7 h-7 rounded-xl bg-white dark:bg-[#2C2C2E] hover:opacity-80 text-slate-800 dark:text-white font-extrabold flex items-center justify-center shadow-xs active:scale-90 transition-all">+</button>
+        </div>
+      </div>
+
+      <input type="range" id="intensity" min="0" max="15" step="0.5" value="4" oninput="updateBlur(this.value)" class="w-full cursor-pointer my-1">
+
+      <!-- Hızlı Preset Butonları -->
+      <div class="grid grid-cols-4 gap-1.5 pt-1">
+        <button onclick="updateBlur(2)" class="py-1.5 rounded-xl text-[11px] font-bold bg-white/70 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition">Hafif (2px)</button>
+        <button onclick="updateBlur(5)" class="py-1.5 rounded-xl text-[11px] font-bold bg-white/70 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition">Orta (5px)</button>
+        <button onclick="updateBlur(9)" class="py-1.5 rounded-xl text-[11px] font-bold bg-white/70 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition">Güçlü (9px)</button>
+        <button onclick="updateBlur(15)" class="py-1.5 rounded-xl text-[11px] font-bold bg-white/70 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition">Maks (15px)</button>
+      </div>
+    </div>
+
+    <!-- Dosya Yükleme / Sürükle Bırak Alanı -->
+    <label id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-white/15 hover:border-[#007AFF] dark:hover:border-[#0A84FF] rounded-[26px] p-5 flex flex-col items-center justify-center cursor-pointer transition-all ios-subcard group">
+      <div class="w-11 h-11 rounded-2xl bg-[#007AFF]/10 text-[#007AFF] dark:text-[#5AC8FA] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+      </div>
+      <span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-center break-all px-2" id="file-label">Medya seçmek için dokunun veya sürükleyip bırakın</span>
+      <span class="text-[10px] font-medium text-slate-400 mt-0.5" id="file-sublabel">JPG, PNG, WEBP (Maks 40MB) • MP4, MOV, WEBM (Maks 500MB)</span>
+      <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(this.files[0])">
     </label>
   </div>
-  <div class="flex flex-col gap-2"><div id="status-text" role="status" aria-live="polite" class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
-    <div id="progress-wrapper" class="hidden w-full bg-slate-200 dark:bg-white/10 h-2.5 rounded-full overflow-hidden"><div id="progress-bar" class="bg-blue-600 h-full transition-all duration-300 rounded-full" style="width:0%"></div></div>
-  </div>
+
+  <!-- Durum & İlerleme Çubuğu -->
   <div class="flex flex-col gap-2">
-    <button onclick="processMedia()" id="action-btn" disabled class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Blur Uygula ve Cihaza İndir</button>
-    <button onclick="cancelProcess()" id="cancel-btn" class="hidden w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold shadow-md transition-all">🛑 İşlemi İptal Et / Durdur</button>
+    <div id="status-text" role="status" aria-live="polite" class="text-xs font-bold text-slate-500 dark:text-slate-400 text-center">Sistem Hazır.</div>
+    <div id="progress-wrapper" class="hidden w-full bg-black/10 dark:bg-white/10 h-2.5 rounded-full overflow-hidden">
+      <div id="progress-bar" class="bg-gradient-to-r from-[#007AFF] to-[#5AC8FA] h-full transition-all duration-300 rounded-full" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Aksiyon Butonları -->
+  <div class="flex flex-col gap-2">
+    <button onclick="processMedia()" id="action-btn" disabled class="w-full py-4 bg-[#007AFF] hover:bg-[#0062CC] active:scale-[0.98] text-white rounded-2xl text-xs font-black tracking-wide shadow-lg shadow-[#007AFF]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+      ✨ İşlemi Başlat ve Cihaza İndir
+    </button>
+    <button onclick="cancelProcess()" id="cancel-btn" class="hidden w-full py-3.5 bg-[#FF3B30] hover:bg-[#D70015] text-white rounded-2xl text-xs font-extrabold shadow-md transition-all">
+      🛑 İşlemi İptal Et / Durdur
+    </button>
   </div>
 </div>
+
 <script>
 const MAX_BLUR = 15;
-let state = {image:{file:null,originalImage:null,name:""},video:{file:null,url:"",name:""}};
-let mediaType="image", blurMode="full", selectedRatioBox=null, isProcessing=false, currentJobId=null, pollAbort=false, drawToken=0;
-const canvas=document.getElementById("preview-canvas"), ctx=canvas.getContext("2d");
-const videoEl=document.getElementById("preview-video"), videoControlsBar=document.getElementById("video-controls-bar");
-const playPauseBtn=document.getElementById("play-pause-btn"), muteBtn=document.getElementById("mute-btn"), videoProgress=document.getElementById("video-progress");
-const activeContainer=document.getElementById("preview-container"), boxEl=document.getElementById("selection-box");
-function el(id){return document.getElementById(id)}
-function setStatus(msg){el("status-text").innerText=msg}
-function toggleTheme(){el("app-html").classList.toggle("dark")}
-function toggleVideoPlay(){if(isProcessing)return;if(videoEl.paused){videoEl.play().then(()=>playPauseBtn.innerText="❚❚").catch(()=>setStatus("Video oynatılamadı."))}else{videoEl.pause();playPauseBtn.innerText="▶"}}
-function toggleVideoMute(){videoEl.muted=!videoEl.muted;muteBtn.innerText=videoEl.muted?"🔇":"🔊"}
-videoEl.addEventListener("loadedmetadata",()=>{videoProgress.value=0;applyLiveVideoBlur()});
-videoEl.addEventListener("timeupdate",()=>{if(Number.isFinite(videoEl.duration)&&videoEl.duration>0)videoProgress.value=(videoEl.currentTime/videoEl.duration)*100});
-videoEl.addEventListener("ended",()=>playPauseBtn.innerText="▶");
-function seekVideo(v){if(!isProcessing&&Number.isFinite(videoEl.duration)&&videoEl.duration>0)videoEl.currentTime=(Number(v)/100)*videoEl.duration}
-function getRenderedMediaRect(){
- const cr=activeContainer.getBoundingClientRect();let nw=0,nh=0;
- if(mediaType==="image"&&state.image.originalImage){nw=state.image.originalImage.naturalWidth;nh=state.image.originalImage.naturalHeight}
- else if(mediaType==="video"&&videoEl.videoWidth){nw=videoEl.videoWidth;nh=videoEl.videoHeight}
- if(!nw||!nh)return cr;
- const scale=Math.min(cr.width/nw,cr.height/nh),w=nw*scale,h=nh*scale;
- return {left:cr.left+(cr.width-w)/2,top:cr.top+(cr.height-h)/2,width:w,height:h}
-}
-function clearSelection(){
- if(isProcessing)return;selectedRatioBox=null;boxEl.classList.add("hidden");el("clear-sel-btn").classList.add("hidden");
- if(mediaType==="image")drawPreview();else applyLiveVideoBlur();
-}
-function switchMediaType(type){
- if(isProcessing||mediaType===type)return;
- mediaType=type;clearSelection();
- el("tab-image").className=type==="image"?"py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all":"py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
- el("tab-video").className=type==="video"?"py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-[#2c2c2e] text-slate-900 dark:text-white shadow-xs transition-all":"py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
- el("file-input").accept=type==="video"?"video/mp4,video/quicktime,video/webm,video/x-m4v":"image/jpeg,image/png,image/webp,image/bmp,image/tiff";
- const has=type==="image"?!!state.image.file:!!state.video.file;
- if(has){activeContainer.classList.remove("hidden");el("file-label").innerText="Seçilen: "+(type==="image"?state.image.name:state.video.name);
-  if(type==="image"){canvas.classList.remove("hidden");videoEl.classList.add("hidden");videoControlsBar.classList.add("hidden");drawPreview()}
-  else{canvas.classList.add("hidden");videoEl.classList.remove("hidden");videoControlsBar.classList.remove("hidden");applyLiveVideoBlur()}
-  el("action-btn").disabled=false
- }else{resetWorkspaceUI();el("file-label").innerText=type==="image"?"Fotoğraf seçmek için dokunun":"Video seçmek için dokunun"}
-}
-function setBlurMode(mode){
- if(isProcessing)return;blurMode=mode;
- el("mode-full").className=mode==="full"?"py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all":"py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
- el("mode-partial").className=mode==="partial"?"py-2 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-xs transition-all":"py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
- el("selection-info").classList.toggle("hidden",mode!=="partial");if(mode==="full")clearSelection();
- if(mediaType==="image")drawPreview();else applyLiveVideoBlur()
-}
-function resetWorkspaceUI(){
- activeContainer.classList.add("hidden");canvas.classList.add("hidden");videoEl.classList.add("hidden");videoControlsBar.classList.add("hidden");
- el("action-btn").disabled=true;el("intensity").value=0;el("intensity-val").innerText="0.0 px";boxEl.classList.add("hidden");selectedRatioBox=null;
- videoEl.style.filter="none";setStatus("Sistem Hazır.")
-}
-function applyLiveVideoBlur(){
- const v=Number(el("intensity").value)||0;
- videoEl.style.filter=(mediaType==="video"&&blurMode==="full"&&v>0)?`blur(${v}px)`:"none";
- boxEl.style.backdropFilter=(mediaType==="video"&&blurMode==="partial"&&selectedRatioBox&&v>0)?`blur(${v}px)`:"none";
- boxEl.style.webkitBackdropFilter=boxEl.style.backdropFilter;
-}
-function nudgeBlur(d){if(isProcessing)return;const s=el("intensity");s.value=Math.max(0,Math.min(MAX_BLUR,(Number(s.value)||0)+d)).toFixed(1);updateBlur(s.value)}
-function updateBlur(v){const n=Math.max(0,Math.min(MAX_BLUR,Number(v)||0));el("intensity-val").innerText=n.toFixed(1)+" px";if(mediaType==="image")requestAnimationFrame(drawPreview);else applyLiveVideoBlur()}
-function handleFileSelect(input){
- if(isProcessing||!input.files||!input.files[0])return;
- const file=input.files[0];const isVideo=file.type.startsWith("video/");
- if(!isVideo&&!file.type.startsWith("image/")){setStatus("Desteklenmeyen dosya türü.");input.value="";return}
- const maxBytes=isVideo?500*1024*1024:40*1024*1024;
- if(file.size>maxBytes){setStatus(`Dosya çok büyük. Sınır: ${isVideo?"500 MB":"40 MB"}.`);input.value="";return}
- const nextType=isVideo?"video":"image";
- if(mediaType!==nextType)switchMediaType(nextType);
- clearSelection();el("file-label").innerText="Seçilen: "+file.name;el("action-btn").disabled=true;
- if(isVideo){
-  state.video.file=file;state.video.name=file.name;
-  if(state.video.url)URL.revokeObjectURL(state.video.url);
-  state.video.url=URL.createObjectURL(file);videoEl.src=state.video.url;videoEl.load();
-  videoEl.classList.remove("hidden");canvas.classList.add("hidden");videoControlsBar.classList.remove("hidden");activeContainer.classList.remove("hidden");
-  videoEl.onloadedmetadata=()=>{el("action-btn").disabled=false;setStatus("Video hazır. Blur ayarını yapıp indirebilirsiniz.");applyLiveVideoBlur()};
-  videoEl.onerror=()=>{el("action-btn").disabled=true;setStatus("Video önizlemesi açılamadı. Başka bir MP4/MOV dosyası deneyin.")};
- }else{
-  state.image.file=file;state.image.name=file.name;const url=URL.createObjectURL(file);const image=new Image();
-  image.onload=()=>{if(state.image.originalImage&&state.image.previewUrl)URL.revokeObjectURL(state.image.previewUrl);state.image.originalImage=image;state.image.previewUrl=url;canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;canvas.classList.remove("hidden");videoEl.classList.add("hidden");videoControlsBar.classList.add("hidden");activeContainer.classList.remove("hidden");el("action-btn").disabled=false;drawPreview();setStatus("Fotoğraf hazır. Blur ayarını yapıp indirebilirsiniz.")};
-  image.onerror=()=>{URL.revokeObjectURL(url);setStatus("Fotoğraf okunamadı veya bozuk.");el("action-btn").disabled=true};image.src=url;
- }
-}
-function startSelection(cx,cy){
- if(isProcessing||blurMode!=="partial"||activeContainer.classList.contains("hidden"))return;
- const mr=getRenderedMediaRect(),cr=activeContainer.getBoundingClientRect();
- const x=Math.max(mr.left,Math.min(cx,mr.left+mr.width)),y=Math.max(mr.top,Math.min(cy,mr.top+mr.height));
- isDrawing=true;startX=x-cr.left;startY=y-cr.top;boxEl.style.left=startX+"px";boxEl.style.top=startY+"px";boxEl.style.width="0px";boxEl.style.height="0px";boxEl.classList.remove("hidden")
-}
-let isDrawing=false,startX=0,startY=0;
-function moveSelection(cx,cy){
- if(!isDrawing||isProcessing)return;const mr=getRenderedMediaRect(),cr=activeContainer.getBoundingClientRect();
- const x=Math.max(mr.left,Math.min(cx,mr.left+mr.width))-cr.left,y=Math.max(mr.top,Math.min(cy,mr.top+mr.height))-cr.top;
- boxEl.style.left=Math.min(startX,x)+"px";boxEl.style.top=Math.min(startY,y)+"px";boxEl.style.width=Math.abs(x-startX)+"px";boxEl.style.height=Math.abs(y-startY)+"px"
-}
-function endSelection(){
- if(!isDrawing)return;isDrawing=false;const br=boxEl.getBoundingClientRect(),mr=getRenderedMediaRect();
- const l=Math.max(0,br.left-mr.left),t=Math.max(0,br.top-mr.top),w=Math.min(br.width,mr.width-l),h=Math.min(br.height,mr.height-t);
- if(w<6||h<6){clearSelection();return}
- selectedRatioBox={rx:l/mr.width,ry:t/mr.height,rw:w/mr.width,rh:h/mr.height};
- el("clear-sel-btn").classList.remove("hidden");setStatus("Bölge seçildi. İndirmeye hazır.");if(mediaType==="image")drawPreview();else applyLiveVideoBlur()
-}
-activeContainer.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;activeContainer.setPointerCapture?.(e.pointerId);startSelection(e.clientX,e.clientY)});
-activeContainer.addEventListener("pointermove",e=>{if(isDrawing){e.preventDefault();moveSelection(e.clientX,e.clientY)}});
-activeContainer.addEventListener("pointerup",endSelection);activeContainer.addEventListener("pointercancel",endSelection);
-function drawPreview(){
- const image=state.image.originalImage;if(mediaType!=="image"||!image)return;
- const token=++drawToken,blur=Number(el("intensity").value)||0;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0);
- if(blur<=0)return;
- const rect=getRenderedMediaRect(),displayW=Math.max(1,rect.width),scale=canvas.width/displayW,sigma=blur*scale;
- // Preview uses a padded offscreen canvas so blur edges don't pull transparent pixels into the result.
- const temp=document.createElement("canvas");temp.width=canvas.width;temp.height=canvas.height;const tctx=temp.getContext("2d");
- tctx.filter=`blur(${Math.min(250,sigma)}px)`;tctx.drawImage(image,0,0);if(token!==drawToken)return;
- if(blurMode==="full"){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(temp,0,0)}
- else if(selectedRatioBox){
-  const x=Math.round(selectedRatioBox.rx*canvas.width),y=Math.round(selectedRatioBox.ry*canvas.height),w=Math.round(selectedRatioBox.rw*canvas.width),h=Math.round(selectedRatioBox.rh*canvas.height);
-  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.clearRect(x,y,w,h);ctx.drawImage(temp,0,0);ctx.restore()
- }
-}
-async function processMedia(){
- const file=mediaType==="image"?state.image.file:state.video.file,blur=Number(el("intensity").value)||0;
- if(!file||isProcessing)return;if(blurMode==="partial"&&!selectedRatioBox){setStatus("⚠️ Lütfen önce blurlanacak bölgeyi seçin!");return}
- isProcessing=true;pollAbort=false;const btn=el("action-btn"),cancel=el("cancel-btn"),workspace=el("interactive-workspace");
- workspace.style.opacity=".45";workspace.style.pointerEvents="none";btn.disabled=true;cancel.classList.remove("hidden");el("progress-wrapper").classList.remove("hidden");el("progress-bar").style.width="2%";setStatus("Medya güvenli biçimde yükleniyor...");
- const fd=new FormData();fd.append("file",file);fd.append("intensity",String(blur));fd.append("media_type",mediaType);fd.append("preview_w",String(Math.max(100,getRenderedMediaRect().width||360)));if(blurMode==="partial")fd.append("box",JSON.stringify(selectedRatioBox));
- try{
-  const start=await fetch("/api/process-media",{method:"POST",body:fd});const data=await start.json().catch(()=>({}));
-  if(!start.ok||!data.success)throw new Error(data.detail||"İşlem başlatılamadı.");currentJobId=data.job_id;
-  while(isProcessing&&!pollAbort){
-   await new Promise(r=>setTimeout(r,700));if(!isProcessing||pollAbort)break;
-   let sr,job={};
-   for(let attempt=0;attempt<2;attempt++){
-    try{sr=await fetch(`/api/job-status/${encodeURIComponent(currentJobId)}`);job=await sr.json().catch(()=>({}));if(sr.ok)break;}
-    catch(e){if(attempt===1)throw new Error("Sunucuya ulaşılamadı. Render servisinin çalıştığını ve logları kontrol edin.");}
-    if(attempt===0)await new Promise(r=>setTimeout(r,1200));
-   }
-   if(!sr||!sr.ok)throw new Error(job.detail||"İşlem kaydı sunucuda bulunamadı. Sunucu yeniden başlamış olabilir; Render loglarını kontrol edin.");
-   el("progress-bar").style.width=`${Math.max(0,Math.min(100,Number(job.progress)||0))}%`;
-   setStatus(job.status==="queued"?"İşlem sırada bekliyor...":`İşleniyor... %${job.progress||0}`);
-   if(job.status==="completed"){
-    setStatus("İşlem tamamlandı. Dosya indiriliyor...");const a=document.createElement("a");a.href=job.download_url;a.download=job.download_name||"can_studio_blur";document.body.appendChild(a);a.click();a.remove();return
-   }
-   if(job.status==="failed")throw new Error(job.error||"Medya işlenemedi.");
-   if(job.status==="cancelled")throw new Error("İşlem iptal edildi.")
-  }
- }catch(err){if(!pollAbort)setStatus("❌ "+(err.message||"Bağlantı hatası."))}
- finally{unlockWorkspace()}
-}
-async function cancelProcess(){
- if(!isProcessing)return;pollAbort=true;const id=currentJobId;setStatus("İptal isteği gönderiliyor...");
- if(id){try{await fetch(`/api/cancel-job/${encodeURIComponent(id)}`,{method:"POST"})}catch(e){}}
- isProcessing=false;currentJobId=null;unlockWorkspace();setStatus("İşlem iptal edildi veya durdurma isteği gönderildi.")
-}
-function unlockWorkspace(){isProcessing=false;currentJobId=null;el("interactive-workspace").style.opacity="1";el("interactive-workspace").style.pointerEvents="auto";el("action-btn").disabled=!(mediaType==="image"?state.image.file&&state.image.originalImage:state.video.file&&videoEl.videoWidth);el("cancel-btn").classList.add("hidden");el("progress-wrapper").classList.add("hidden")}
-window.addEventListener("beforeunload",()=>{if(state.video.url)URL.revokeObjectURL(state.video.url);if(state.image.previewUrl)URL.revokeObjectURL(state.image.previewUrl)});
-</script>
-</body></html>
+let state = {
+  image: { file: null, originalImage: null, previewUrl: "", name: "" },
+  video: { file: null, url: "", name: "" }
+};
+let mediaType = "image";
+let blurMode = "full"; // 'full' | 'partial' | 'invert'
+let effectType = "gaussian"; // 'gaussian' | 'pixelate'
+let selectedBoxes = []; // [{rx, ry, rw, rh}]
+let isProcessing = false, currentJobId = null, pollAbort = false, showOriginal = false;
 
+const canvas = document.getElementById("preview-canvas"), ctx = canvas.getContext("2d");
+const videoEl = document.getElementById("preview-video"), videoControlsBar = document.getElementById("video-controls-bar");
+const activeContainer = document.getElementById("preview-container");
+const boxesOverlay = document.getElementById("boxes-overlay");
+const activeDrawBox = document.getElementById("active-draw-box");
+
+function el(id) { return document.getElementById(id); }
+function setStatus(msg) { el("status-text").innerText = msg; }
+function toggleTheme() { el("app-html").classList.toggle("dark"); }
+
+// Sürükle-Bırak (Drag & Drop) Desteği
+const dropZone = el("drop-zone");
+["dragenter", "dragover"].forEach(evt => {
+  dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add("border-[#007AFF]", "scale-[1.01]"); });
+});
+["dragleave", "drop"].forEach(evt => {
+  dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove("border-[#007AFF]", "scale-[1.01]"); });
+});
+dropZone.addEventListener("drop", e => {
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+    handleFileSelect(e.dataTransfer.files[0]);
+  }
+});
+
+function formatTime(sec) {
+  if (!Number.isFinite(sec) || sec < 0) return "0:00";
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
+}
+
+function toggleVideoPlay() {
+  if (isProcessing) return;
+  if (videoEl.paused) {
+    videoEl.play().then(() => el("play-pause-btn").innerText = "❚❚").catch(() => setStatus("Video oynatılamadı."));
+  } else {
+    videoEl.pause();
+    el("play-pause-btn").innerText = "▶";
+  }
+}
+function toggleVideoMute() {
+  videoEl.muted = !videoEl.muted;
+  el("mute-btn").innerText = videoEl.muted ? "🔇" : "🔊";
+}
+videoEl.addEventListener("loadedmetadata", () => {
+  el("video-progress").value = 0;
+  el("video-time").innerText = formatTime(videoEl.duration);
+  el("badge-resolution").innerText = `${videoEl.videoWidth}×${videoEl.videoHeight}`;
+  el("badge-resolution").classList.remove("hidden");
+  renderBoxesOverlay();
+});
+videoEl.addEventListener("timeupdate", () => {
+  if (Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
+    el("video-progress").value = (videoEl.currentTime / videoEl.duration) * 100;
+    el("video-time").innerText = formatTime(videoEl.currentTime);
+  }
+});
+videoEl.addEventListener("ended", () => el("play-pause-btn").innerText = "▶");
+function seekVideo(v) {
+  if (!isProcessing && Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
+    videoEl.currentTime = (Number(v) / 100) * videoEl.duration;
+  }
+}
+
+function getRenderedMediaRect() {
+  const cr = activeContainer.getBoundingClientRect();
+  let nw = 0, nh = 0;
+  if (mediaType === "image" && state.image.originalImage) {
+    nw = state.image.originalImage.naturalWidth;
+    nh = state.image.originalImage.naturalHeight;
+  } else if (mediaType === "video" && videoEl.videoWidth) {
+    nw = videoEl.videoWidth;
+    nh = videoEl.videoHeight;
+  }
+  if (!nw || !nh) return cr;
+  const scale = Math.min(cr.width / nw, cr.height / nh);
+  const w = nw * scale, h = nh * scale;
+  return { left: cr.left + (cr.width - w) / 2, top: cr.top + (cr.height - h) / 2, width: w, height: h };
+}
+
+function switchMediaType(type) {
+  if (isProcessing || mediaType === type) return;
+  mediaType = type;
+  clearSelection();
+  const activeCls = "py-2 text-xs font-bold rounded-xl bg-white dark:bg-[#2C2C2E] text-slate-900 dark:text-white shadow-sm transition-all";
+  const idleCls = "py-2 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 transition-all";
+  el("tab-image").className = type === "image" ? activeCls : idleCls;
+  el("tab-video").className = type === "video" ? activeCls : idleCls;
+  el("file-input").accept = type === "video" ? "video/mp4,video/quicktime,video/webm,video/x-m4v" : "image/jpeg,image/png,image/webp,image/bmp,image/tiff";
+
+  const has = type === "image" ? !!state.image.file : !!state.video.file;
+  if (has) {
+    activeContainer.classList.remove("hidden");
+    el("file-label").innerText = "Seçilen: " + (type === "image" ? state.image.name : state.video.name);
+    if (type === "image") {
+      canvas.classList.remove("hidden");
+      el("compare-btn").classList.remove("hidden");
+      videoEl.classList.add("hidden");
+      videoControlsBar.classList.add("hidden");
+      drawPreview();
+    } else {
+      canvas.classList.add("hidden");
+      el("compare-btn").classList.add("hidden");
+      videoEl.classList.remove("hidden");
+      videoControlsBar.classList.remove("hidden");
+      renderBoxesOverlay();
+    }
+    el("action-btn").disabled = false;
+  } else {
+    resetWorkspaceUI();
+  }
+}
+
+function setBlurMode(mode) {
+  if (isProcessing) return;
+  blurMode = mode;
+  ["full", "partial", "invert"].forEach(m => {
+    el("mode-" + m).className = m === mode
+      ? "py-2 text-[11px] font-bold rounded-xl bg-[#007AFF] text-white shadow-sm transition-all"
+      : "py-2 text-[11px] font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all";
+  });
+  const needsSelection = mode === "partial" || mode === "invert";
+  el("selection-info").classList.toggle("hidden", !needsSelection);
+  el("selection-hint").innerText = mode === "invert"
+    ? "🎯 Net kalmasını istediğiniz odak bölgeyi seçin (arka plan blurlanır)."
+    : "✨ Medya üzerinde sürükleyerek birden fazla sansür kutusu çizebilirsiniz.";
+  if (mode === "full") clearSelection();
+  refreshVisuals();
+}
+
+function setEffectType(type) {
+  if (isProcessing) return;
+  effectType = type;
+  const active = "py-2 px-3 rounded-xl text-xs font-bold border border-[#007AFF] bg-[#007AFF]/10 text-[#007AFF] dark:text-[#5AC8FA] flex items-center justify-center gap-1.5 transition-all";
+  const idle = "py-2 px-3 rounded-xl text-xs font-bold border border-transparent ios-subcard text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-all";
+  el("effect-gaussian").className = type === "gaussian" ? active : idle;
+  el("effect-pixelate").className = type === "pixelate" ? active : idle;
+  refreshVisuals();
+}
+
+function setCompare(val) {
+  showOriginal = val;
+  if (mediaType === "image") drawPreview();
+}
+
+function clearSelection() {
+  if (isProcessing) return;
+  selectedBoxes = [];
+  updateSelectionButtons();
+  refreshVisuals();
+}
+
+function undoLastBox() {
+  if (isProcessing || selectedBoxes.length === 0) return;
+  selectedBoxes.pop();
+  updateSelectionButtons();
+  refreshVisuals();
+}
+
+function updateSelectionButtons() {
+  const count = selectedBoxes.length;
+  el("box-count").innerText = count;
+  el("clear-sel-btn").classList.toggle("hidden", count === 0);
+  el("undo-sel-btn").classList.toggle("hidden", count === 0);
+}
+
+function resetWorkspaceUI() {
+  activeContainer.classList.add("hidden");
+  canvas.classList.add("hidden");
+  videoEl.classList.add("hidden");
+  videoControlsBar.classList.add("hidden");
+  el("compare-btn").classList.add("hidden");
+  el("badge-resolution").classList.add("hidden");
+  el("action-btn").disabled = true;
+  selectedBoxes = [];
+  updateSelectionButtons();
+  boxesOverlay.innerHTML = "";
+  videoEl.style.filter = "none";
+  setStatus("Sistem Hazır.");
+}
+
+function nudgeBlur(d) {
+  if (isProcessing) return;
+  const s = el("intensity");
+  const next = Math.max(0, Math.min(MAX_BLUR, (Number(s.value) || 0) + d));
+  updateBlur(next);
+}
+
+function updateBlur(v) {
+  const n = Math.max(0, Math.min(MAX_BLUR, Number(v) || 0));
+  el("intensity").value = n;
+  el("intensity-val").innerText = n.toFixed(1) + " px";
+  refreshVisuals();
+}
+
+function refreshVisuals() {
+  if (mediaType === "image") requestAnimationFrame(drawPreview);
+  renderBoxesOverlay();
+}
+
+function renderBoxesOverlay() {
+  boxesOverlay.innerHTML = "";
+  const v = Number(el("intensity").value) || 0;
+
+  if (mediaType === "video") {
+    videoEl.style.filter = (blurMode === "full" && v > 0) ? `blur(${v}px)` : "none";
+  }
+
+  if (blurMode === "full" || selectedBoxes.length === 0) return;
+  const mr = getRenderedMediaRect();
+  const cr = activeContainer.getBoundingClientRect();
+
+  selectedBoxes.forEach((b, idx) => {
+    const div = document.createElement("div");
+    const left = (mr.left - cr.left) + b.rx * mr.width;
+    const top = (mr.top - cr.top) + b.ry * mr.height;
+    const w = b.rw * mr.width;
+    const h = b.rh * mr.height;
+
+    div.className = "absolute border-2 border-[#0A84FF] rounded-lg flex items-start justify-end p-1 transition-all";
+    div.style.left = `${left}px`;
+    div.style.top = `${top}px`;
+    div.style.width = `${w}px`;
+    div.style.height = `${h}px`;
+
+    if (mediaType === "video" && blurMode === "partial" && v > 0) {
+      div.style.backdropFilter = `blur(${v}px)`;
+      div.style.webkitBackdropFilter = `blur(${v}px)`;
+    }
+
+    const badge = document.createElement("span");
+    badge.className = "px-1.5 py-0.5 text-[9px] font-black bg-[#0A84FF] text-white rounded-md shadow";
+    badge.innerText = `#${idx + 1}`;
+    div.appendChild(badge);
+    boxesOverlay.appendChild(div);
+  });
+}
+
+function handleFileSelect(file) {
+  if (isProcessing || !file) return;
+  const isVideo = file.type.startsWith("video/");
+  if (!isVideo && !file.type.startsWith("image/")) {
+    setStatus("❌ Desteklenmeyen dosya türü.");
+    return;
+  }
+  const maxBytes = isVideo ? 500 * 1024 * 1024 : 40 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    setStatus(`❌ Dosya çok büyük. Sınır: ${isVideo ? "500 MB" : "40 MB"}.`);
+    return;
+  }
+  const nextType = isVideo ? "video" : "image";
+  if (mediaType !== nextType) switchMediaType(nextType);
+  clearSelection();
+  el("file-label").innerText = "Seçilen: " + file.name;
+  el("action-btn").disabled = true;
+
+  if (isVideo) {
+    state.video.file = file;
+    state.video.name = file.name;
+    if (state.video.url) URL.revokeObjectURL(state.video.url);
+    state.video.url = URL.createObjectURL(file);
+    videoEl.src = state.video.url;
+    videoEl.load();
+    videoEl.classList.remove("hidden");
+    canvas.classList.add("hidden");
+    el("compare-btn").classList.add("hidden");
+    videoControlsBar.classList.remove("hidden");
+    activeContainer.classList.remove("hidden");
+    videoEl.onloadedmetadata = () => {
+      el("action-btn").disabled = false;
+      setStatus("✅ Video hazır. Ayarları yapıp indirebilirsiniz.");
+      refreshVisuals();
+    };
+    videoEl.onerror = () => {
+      el("action-btn").disabled = true;
+      setStatus("❌ Video önizlemesi açılamadı. Başka bir MP4/MOV deneyin.");
+    };
+  } else {
+    state.image.file = file;
+    state.image.name = file.name;
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      if (state.image.previewUrl) URL.revokeObjectURL(state.image.previewUrl);
+      state.image.originalImage = image;
+      state.image.previewUrl = url;
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      el("badge-resolution").innerText = `${image.naturalWidth}×${image.naturalHeight}`;
+      el("badge-resolution").classList.remove("hidden");
+      canvas.classList.remove("hidden");
+      el("compare-btn").classList.remove("hidden");
+      videoEl.classList.add("hidden");
+      videoControlsBar.classList.add("hidden");
+      activeContainer.classList.remove("hidden");
+      el("action-btn").disabled = false;
+      drawPreview();
+      setStatus("✅ Fotoğraf hazır. Ayarları yapıp indirebilirsiniz.");
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      setStatus("❌ Fotoğraf okunamadı veya bozuk.");
+      el("action-btn").disabled = true;
+    };
+    image.src = url;
+  }
+}
+
+// Çoklu Kutu Çizim Mekanizması
+let isDrawing = false, startX = 0, startY = 0;
+function startSelection(cx, cy) {
+  if (isProcessing || blurMode === "full" || activeContainer.classList.contains("hidden")) return;
+  const mr = getRenderedMediaRect(), cr = activeContainer.getBoundingClientRect();
+  const x = Math.max(mr.left, Math.min(cx, mr.left + mr.width));
+  const y = Math.max(mr.top, Math.min(cy, mr.top + mr.height));
+  isDrawing = true;
+  startX = x - cr.left;
+  startY = y - cr.top;
+  activeDrawBox.style.left = startX + "px";
+  activeDrawBox.style.top = startY + "px";
+  activeDrawBox.style.width = "0px";
+  activeDrawBox.style.height = "0px";
+  activeDrawBox.classList.remove("hidden");
+}
+function moveSelection(cx, cy) {
+  if (!isDrawing || isProcessing) return;
+  const mr = getRenderedMediaRect(), cr = activeContainer.getBoundingClientRect();
+  const x = Math.max(mr.left, Math.min(cx, mr.left + mr.width)) - cr.left;
+  const y = Math.max(mr.top, Math.min(cy, mr.top + mr.height)) - cr.top;
+  activeDrawBox.style.left = Math.min(startX, x) + "px";
+  activeDrawBox.style.top = Math.min(startY, y) + "px";
+  activeDrawBox.style.width = Math.abs(x - startX) + "px";
+  activeDrawBox.style.height = Math.abs(y - startY) + "px";
+}
+function endSelection() {
+  if (!isDrawing) return;
+  isDrawing = false;
+  const br = activeDrawBox.getBoundingClientRect(), mr = getRenderedMediaRect();
+  activeDrawBox.classList.add("hidden");
+  const l = Math.max(0, br.left - mr.left), t = Math.max(0, br.top - mr.top);
+  const w = Math.min(br.width, mr.width - l), h = Math.min(br.height, mr.height - t);
+  if (w < 8 || h < 8) return;
+  selectedBoxes.push({ rx: l / mr.width, ry: t / mr.height, rw: w / mr.width, rh: h / mr.height });
+  updateSelectionButtons();
+  setStatus(`✅ ${selectedBoxes.length} bölge seçildi. Yeni bölge ekleyebilir veya indirebilirsiniz.`);
+  refreshVisuals();
+}
+
+activeContainer.addEventListener("pointerdown", e => {
+  if (e.target.id === "compare-btn" || (e.pointerType === "mouse" && e.button !== 0)) return;
+  activeContainer.setPointerCapture?.(e.pointerId);
+  startSelection(e.clientX, e.clientY);
+});
+activeContainer.addEventListener("pointermove", e => {
+  if (isDrawing) { e.preventDefault(); moveSelection(e.clientX, e.clientY); }
+});
+activeContainer.addEventListener("pointerup", endSelection);
+activeContainer.addEventListener("pointercancel", endSelection);
+window.addEventListener("resize", () => { if (!activeContainer.classList.contains("hidden")) renderBoxesOverlay(); });
+
+function createProcessedCanvas(image, blurVal) {
+  const temp = document.createElement("canvas");
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+  const tctx = temp.getContext("2d");
+  const rect = getRenderedMediaRect();
+  const scale = canvas.width / Math.max(1, rect.width);
+  const sigma = blurVal * scale;
+
+  if (effectType === "pixelate") {
+    const blockSize = Math.max(2, Math.round(sigma * 1.35));
+    const sw = Math.max(2, Math.round(canvas.width / blockSize));
+    const sh = Math.max(2, Math.round(canvas.height / blockSize));
+    const pCanvas = document.createElement("canvas");
+    pCanvas.width = sw; pCanvas.height = sh;
+    const pCtx = pCanvas.getContext("2d");
+    pCtx.drawImage(image, 0, 0, sw, sh);
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(pCanvas, 0, 0, sw, sh, 0, 0, canvas.width, canvas.height);
+  } else {
+    tctx.filter = `blur(${Math.min(250, sigma)}px)`;
+    tctx.drawImage(image, 0, 0);
+  }
+  return temp;
+}
+
+function drawPreview() {
+  const image = state.image.originalImage;
+  if (mediaType !== "image" || !image) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 0, 0);
+
+  const blur = Number(el("intensity").value) || 0;
+  if (blur <= 0 || showOriginal) return;
+
+  const processed = createProcessedCanvas(image, blur);
+
+  if (blurMode === "full") {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(processed, 0, 0);
+  } else if (blurMode === "partial" && selectedBoxes.length > 0) {
+    selectedBoxes.forEach(b => {
+      const x = Math.round(b.rx * canvas.width), y = Math.round(b.ry * canvas.height);
+      const w = Math.round(b.rw * canvas.width), h = Math.round(b.rh * canvas.height);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+      ctx.drawImage(processed, 0, 0);
+      ctx.restore();
+    });
+  } else if (blurMode === "invert" && selectedBoxes.length > 0) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(processed, 0, 0);
+    selectedBoxes.forEach(b => {
+      const x = Math.round(b.rx * canvas.width), y = Math.round(b.ry * canvas.height);
+      const w = Math.round(b.rw * canvas.width), h = Math.round(b.rh * canvas.height);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+      ctx.drawImage(image, 0, 0);
+      ctx.restore();
+    });
+  }
+}
+
+async function processMedia() {
+  const file = mediaType === "image" ? state.image.file : state.video.file;
+  const blur = Number(el("intensity").value) || 0;
+  if (!file || isProcessing) return;
+  if ((blurMode === "partial" || blurMode === "invert") && selectedBoxes.length === 0) {
+    setStatus("⚠️ Lütfen önce medya üzerinde en az bir bölge seçin!");
+    return;
+  }
+
+  isProcessing = true; pollAbort = false;
+  const btn = el("action-btn"), cancel = el("cancel-btn"), workspace = el("interactive-workspace");
+  workspace.style.opacity = ".45"; workspace.style.pointerEvents = "none";
+  btn.disabled = true; cancel.classList.remove("hidden");
+  el("progress-wrapper").classList.remove("hidden");
+  el("progress-bar").style.width = "4%";
+  setStatus("🚀 Medya sunucuya yükleniyor...");
+
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("intensity", String(blur));
+  fd.append("media_type", mediaType);
+  fd.append("blur_mode", blurMode);
+  fd.append("effect_type", effectType);
+  fd.append("preview_w", String(Math.max(100, getRenderedMediaRect().width || 360)));
+  if (blurMode !== "full") {
+    fd.append("boxes", JSON.stringify(selectedBoxes));
+  }
+
+  try {
+    const start = await fetch("/api/process-media", { method: "POST", body: fd });
+    const data = await start.json().catch(() => ({}));
+    if (!start.ok || !data.success) throw new Error(data.detail || "İşlem başlatılamadı.");
+    currentJobId = data.job_id;
+
+    while (isProcessing && !pollAbort) {
+      await new Promise(r => setTimeout(r, 650));
+      if (!isProcessing || pollAbort) break;
+      const sr = await fetch(`/api/job-status/${encodeURIComponent(currentJobId)}`);
+      const job = await sr.json().catch(() => ({}));
+      if (!sr.ok) throw new Error(job.detail || "İşlem durumu alınamadı.");
+
+      el("progress-bar").style.width = `${Math.max(4, Math.min(100, Number(job.progress) || 0))}%`;
+      setStatus(job.status === "queued" ? "⏳ Sırada bekliyor..." : `⚙️ İşleniyor... %${job.progress || 0}`);
+
+      if (job.status === "completed") {
+        setStatus("✅ Tamamlandı! Cihazınıza indiriliyor...");
+        const a = document.createElement("a");
+        a.href = job.download_url;
+        a.download = job.download_name || "can_studio_output";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+      if (job.status === "failed") throw new Error(job.error || "Medya işlenemedi.");
+      if (job.status === "cancelled") throw new Error("İşlem iptal edildi.");
+    }
+  } catch (err) {
+    if (!pollAbort) setStatus("❌ " + (err.message || "Bağlantı hatası."));
+  } finally {
+    unlockWorkspace();
+  }
+}
+
+async function cancelProcess() {
+  if (!isProcessing) return;
+  pollAbort = true;
+  const id = currentJobId;
+  setStatus("🛑 İptal isteği gönderiliyor...");
+  if (id) {
+    try { await fetch(`/api/cancel-job/${encodeURIComponent(id)}`, { method: "POST" }); } catch (e) {}
+  }
+  unlockWorkspace();
+  setStatus("🛑 İşlem kullanıcı tarafından durduruldu.");
+}
+
+function unlockWorkspace() {
+  isProcessing = false; currentJobId = null;
+  el("interactive-workspace").style.opacity = "1";
+  el("interactive-workspace").style.pointerEvents = "auto";
+  el("action-btn").disabled = !(mediaType === "image" ? state.image.file && state.image.originalImage : state.video.file && videoEl.videoWidth);
+  el("cancel-btn").classList.add("hidden");
+  el("progress-wrapper").classList.add("hidden");
+}
+</script>
+</body>
+</html>
