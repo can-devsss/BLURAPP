@@ -1,8 +1,12 @@
 from __future__ import annotations
-import os, time, uuid, json, threading
+import os
+import time
+import uuid
+import json
+import threading
 from pathlib import Path
-from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,17 +29,20 @@ JOBS_LOCK = threading.RLock()
 MAX_QUEUED_JOBS = 12
 SEMAPHORE = threading.BoundedSemaphore(MAX_QUEUED_JOBS)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    cleanup_old_files()
     yield
     executor.shutdown(wait=False, cancel_futures=True)
 
-app = FastAPI(title="CAN STUDIO - Pro Blur Engine", lifespan=lifespan)
+
+app = FastAPI(title="CAN STUDIO - Blur Engine Pro", lifespan=lifespan)
+
 
 @app.api_route("/healthz", methods=["GET", "POST", "HEAD", "OPTIONS"])
 async def health_check():
-    return {"status": "ok", "workers": MAX_WORKERS}
+    return {"status": "ok"}
+
 
 allowed_origins = [x.strip() for x in os.getenv("BLUR_ALLOWED_ORIGINS", "").split(",") if x.strip()]
 if allowed_origins:
@@ -46,6 +53,7 @@ if allowed_origins:
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
+
 
 def cleanup_old_files():
     now = time.time()
@@ -66,11 +74,13 @@ def cleanup_old_files():
         except OSError:
             pass
 
+
 def set_progress(job_id: str, pct: int):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
         if job and not job["cancel_event"].is_set():
             job["progress"] = max(0, min(100, int(pct)))
+
 
 def _run_job(
     job_id: str,
@@ -79,14 +89,16 @@ def _run_job(
     output_filename: str,
     media_type: str,
     intensity: float,
-    boxes_data: list[dict] | None,
-    blur_mode: str,
-    effect_type: str,
+    box_data: dict | None,
     preview_w: float,
+    blur_style: str,
+    invert: bool,
+    feather: int,
 ):
     def progress(p):
         set_progress(job_id, p)
 
+    start_ts = time.time()
     try:
         with JOBS_LOCK:
             job = JOBS.get(job_id)
@@ -96,18 +108,18 @@ def _run_job(
                 job["status"] = "cancelled"
                 return
             job["status"] = "processing"
-            job["progress"] = 5
+            job["progress"] = 4
             cancel_event = job["cancel_event"]
 
         if media_type == "video":
             BlurProcessor.apply_video_blur(
-                input_path, output_path, intensity, boxes_data,
-                blur_mode, effect_type, preview_w, progress, cancel_event
+                input_path, output_path, intensity, box_data, preview_w,
+                progress, cancel_event, blur_style, invert, feather
             )
         else:
             BlurProcessor.apply_progressive_blur(
-                input_path, output_path, intensity, boxes_data,
-                blur_mode, effect_type, preview_w, progress, cancel_event
+                input_path, output_path, intensity, box_data, preview_w,
+                progress, cancel_event, blur_style, invert, feather
             )
 
         if cancel_event.is_set():
@@ -115,6 +127,8 @@ def _run_job(
         if not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
             raise RuntimeError("Geçerli çıktı dosyası oluşturulamadı.")
 
+        out_size = os.path.getsize(output_path)
+        elapsed = round(time.time() - start_ts, 2)
         with JOBS_LOCK:
             job = JOBS.get(job_id)
             if job:
@@ -122,7 +136,9 @@ def _run_job(
                     status="completed",
                     progress=100,
                     download_url=f"/api/download/{output_filename}",
-                    download_name=f"can_studio_blur{Path(output_filename).suffix}",
+                    download_name=f"CanStudio_Blur{Path(output_filename).suffix}",
+                    output_size=out_size,
+                    elapsed_sec=elapsed,
                 )
     except InterruptedError:
         with JOBS_LOCK:
@@ -137,37 +153,13 @@ def _run_job(
         Path(output_path).unlink(missing_ok=True)
     finally:
         Path(input_path).unlink(missing_ok=True)
+        for suffix in ("_temp_silent.mp4", "_temp_audio.mp4"):
+            Path(output_path + suffix).unlink(missing_ok=True)
         with JOBS_LOCK:
             if job_id in JOBS:
                 JOBS[job_id]["paths"] = []
         SEMAPHORE.release()
 
-def _parse_boxes(boxes_raw: str | None, box_legacy: str | None) -> list[dict] | None:
-    raw = boxes_raw or box_legacy
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        raise HTTPException(422, "Bölge seçimi JSON formatı geçersiz.")
-    if isinstance(parsed, dict):
-        parsed = [parsed]
-    if not isinstance(parsed, list) or len(parsed) == 0 or len(parsed) > 25:
-        raise HTTPException(422, "En fazla 25 bölge seçilebilir.")
-    validated = []
-    for item in parsed:
-        if not isinstance(item, dict) or not all(k in item for k in ("rx", "ry", "rw", "rh")):
-            raise HTTPException(422, "Bölge koordinatları eksik.")
-        try:
-            rx, ry, rw, rh = (float(item[k]) for k in ("rx", "ry", "rw", "rh"))
-        except (TypeError, ValueError):
-            raise HTTPException(422, "Bölge koordinatları sayısal olmalı.")
-        if not all(0.0 <= v <= 1.0 for v in (rx, ry, rw, rh)) or rw <= 0 or rh <= 0:
-            raise HTTPException(422, "Bölge koordinatları sınır dışında.")
-        rw = min(rw, 1.0 - rx)
-        rh = min(rh, 1.0 - ry)
-        validated.append({"rx": rx, "ry": ry, "rw": rw, "rh": rh})
-    return validated
 
 @app.get("/", response_class=HTMLResponse)
 def get_index():
@@ -176,28 +168,30 @@ def get_index():
         raise HTTPException(status_code=500, detail="index.html bulunamadı.")
     return HTMLResponse(p.read_text(encoding="utf-8"))
 
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "workers": MAX_WORKERS}
+
 
 @app.post("/api/process-media")
 async def process_media(
     file: UploadFile = File(...),
     intensity: float = Form(...),
     media_type: str = Form(...),
-    blur_mode: str = Form("full"),
-    effect_type: str = Form("gaussian"),
-    boxes: str | None = Form(None),
     box: str | None = Form(None),
     preview_w: float = Form(360.0),
+    blur_style: str = Form("gaussian"),
+    invert: bool = Form(False),
+    feather: int = Form(0),
 ):
     cleanup_old_files()
     if media_type not in {"image", "video"}:
         raise HTTPException(422, "Geçersiz medya türü.")
-    if blur_mode not in {"full", "partial", "invert"}:
-        raise HTTPException(422, "Geçersiz bulanıklaştırma modu.")
-    if effect_type not in {"gaussian", "pixelate"}:
-        raise HTTPException(422, "Geçersiz efekt türü.")
+    if blur_style not in {"gaussian", "pixelate", "box"}:
+        blur_style = "gaussian"
+    feather = max(0, min(100, int(feather or 0)))
+
     if not (0 <= intensity <= MAX_BLUR):
         raise HTTPException(422, f"Blur değeri 0–{MAX_BLUR:g} aralığında olmalı.")
     if not (100 <= preview_w <= MAX_PREVIEW_WIDTH):
@@ -210,15 +204,31 @@ async def process_media(
     allowed_image = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
     allowed_video = {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}
 
+    if media_type == "image" and suffix not in allowed_image:
+        suffix = ".jpg"
+
     try:
         if media_type == "video" and suffix not in allowed_video:
             raise HTTPException(415, "Desteklenmeyen video uzantısı.")
         if media_type == "image" and suffix not in allowed_image:
-            suffix = ".jpg"
+            raise HTTPException(415, "Desteklenmeyen görsel uzantısı.")
 
-        boxes_data = _parse_boxes(boxes, box) if blur_mode != "full" else None
-        if blur_mode in {"partial", "invert"} and not boxes_data:
-            raise HTTPException(422, "Bölgesel mod için en az bir alan seçilmelidir.")
+        box_data = None
+        if box:
+            try:
+                box_data = json.loads(box)
+            except (json.JSONDecodeError, TypeError):
+                raise HTTPException(422, "Bölge seçimi geçersiz.")
+            if not isinstance(box_data, dict) or not all(k in box_data for k in ("rx", "ry", "rw", "rh")):
+                raise HTTPException(422, "Bölge koordinatları eksik.")
+            try:
+                vals = [float(box_data[k]) for k in ("rx", "ry", "rw", "rh")]
+            except (TypeError, ValueError):
+                raise HTTPException(422, "Bölge koordinatları sayısal olmalı.")
+            rx, ry, rw, rh = vals
+            if not all(0 <= v <= 1 for v in vals) or rw <= 0 or rh <= 0 or rx + rw > 1.00001 or ry + rh > 1.00001:
+                raise HTTPException(422, "Bölge koordinatları sınır dışında.")
+            box_data = dict(zip(("rx", "ry", "rw", "rh"), vals))
 
         max_bytes = MAX_VIDEO_BYTES if media_type == "video" else MAX_IMAGE_BYTES
         input_path = UPLOAD_DIR / f"orig_{job_id}{suffix}"
@@ -241,7 +251,7 @@ async def process_media(
                     if total > max_bytes:
                         dst.close()
                         input_path.unlink(missing_ok=True)
-                        raise HTTPException(413, f"Dosya boyutu sınırı aşıldı ({max_bytes // (1024*1024)} MB).")
+                        raise HTTPException(413, f"Dosya boyutu sınırı aşıldı ({max_bytes // (1024 * 1024)} MB).")
                     dst.write(chunk)
         except Exception:
             input_path.unlink(missing_ok=True)
@@ -257,17 +267,34 @@ async def process_media(
             "created_at": time.time(),
             "download_url": None,
             "download_name": None,
+            "output_size": None,
+            "elapsed_sec": None,
             "error": None,
             "cancel_event": threading.Event(),
             "paths": [str(input_path), str(output_path)],
         }
         with JOBS_LOCK:
             JOBS[job_id] = job
-
-        executor.submit(
-            _run_job, job_id, str(input_path), str(output_path), output_filename,
-            media_type, float(intensity), boxes_data, blur_mode, effect_type, float(preview_w)
-        )
+        try:
+            executor.submit(
+                _run_job,
+                job_id,
+                str(input_path),
+                str(output_path),
+                output_filename,
+                media_type,
+                float(intensity),
+                box_data,
+                float(preview_w),
+                blur_style,
+                bool(invert),
+                feather,
+            )
+        except Exception:
+            with JOBS_LOCK:
+                JOBS.pop(job_id, None)
+            input_path.unlink(missing_ok=True)
+            raise
         return {"success": True, "job_id": job_id}
     except HTTPException:
         SEMAPHORE.release()
@@ -278,10 +305,46 @@ async def process_media(
     finally:
         await file.close()
 
+
 @app.get("/api/job-status/{job_id}")
 def get_job_status(job_id: str):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
         if not job:
-            raise HTTPException(404, "İşlem kaydı sunucuda bulunamadı.")
-        return {k: job.
+            raise HTTPException(
+                404,
+                "İşlem kaydı sunucuda bulunamadı. Sunucu yeniden başlamış olabilir; medyayı tekrar işleyin.",
+            )
+        return {
+            k: job.get(k)
+            for k in ("status", "progress", "download_url", "download_name", "output_size", "elapsed_sec", "error")
+        }
+
+
+@app.post("/api/cancel-job/{job_id}")
+def cancel_job(job_id: str):
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            raise HTTPException(404, "İşlem bulunamadı.")
+        if job["status"] in {"completed", "failed", "cancelled"}:
+            return {"success": True, "status": job["status"]}
+        job["cancel_event"].set()
+        job["status"] = "cancelling"
+    return {"success": True, "status": "cancelling"}
+
+
+@app.get("/api/download/{filename}")
+def download_file(filename: str):
+    safe = Path(filename).name
+    if safe != filename or not safe.startswith("blurred_") or any(x in safe for x in ("/", "\\", "..")):
+        raise HTTPException(400, "Geçersiz dosya adı.")
+    path = UPLOAD_DIR / safe
+    if not path.is_file():
+        raise HTTPException(404, "Dosya bulunamadı veya süresi doldu.")
+    return FileResponse(
+        path=str(path),
+        filename=safe,
+        media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
